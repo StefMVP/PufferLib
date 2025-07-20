@@ -39,6 +39,7 @@ from torch.utils.cpp_extension import (
 DEBUG = os.getenv("DEBUG", "0") == "1"
 NO_OCEAN = os.getenv("NO_OCEAN", "0") == "1"
 NO_TRAIN = os.getenv("NO_TRAIN", "0") == "1"
+ENV = os.getenv("ENV")
 
 # Build raylib for your platform
 RAYLIB_URL = 'https://github.com/raysan5/raylib/releases/download/5.5/'
@@ -412,7 +413,11 @@ extension_kwargs = dict(
 # TODO: Include other C files so rebuild is auto?
 c_extensions = []
 if not NO_OCEAN:
-    c_extension_paths = glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
+    if ENV:
+        c_extension_paths = glob.glob(f'pufferlib/ocean/{ENV}/binding.c')
+    else:
+        c_extension_paths = glob.glob('pufferlib/ocean/**/binding.c', recursive=True)
+    
     c_extensions = [
         Extension(
             path.rstrip('.c').replace('/', '.'),
