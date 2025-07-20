@@ -23,6 +23,11 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "damage_taken", log->damage_taken);
     assign_to_dict(dict, "rift_completions", log->rift_completions);
     assign_to_dict(dict, "vendor_transactions", log->vendor_transactions);
-    assign_to_dict(dict, "whirlwinds_used", log->whirlwinds_used);
+    assign_to_dict(dict, "blizzards_cast", log->blizzards_cast);
+    assign_to_dict(dict, "deaths", log->deaths);
+    assign_to_dict(dict, "completion_rewards", log->completion_rewards);
+    assign_to_dict(dict, "monster_kill_rewards", log->monster_kill_rewards);
+    assign_to_dict(dict, "item_pickup_rewards", log->item_pickup_rewards);
+    assign_to_dict(dict, "death_penalties", log->death_penalties);
     return 0;
 }

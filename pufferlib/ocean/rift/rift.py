@@ -1,6 +1,6 @@
 '''Rift Environment
 
-A Diablo-style action RPG environment where agents play as a barbarian
+A Diablo-style action RPG environment where agents play as a sorceress
 navigating between rift dungeons (fighting monsters and bosses) and 
 town (managing inventory and vendors). Features dynamic action/observation
 spaces based on the current phase.
@@ -25,18 +25,18 @@ class Rift(pufferlib.PufferEnv):
         seed=0,
     ):
         
-        # 32x32 local view + additional features for both rift and town phases
-        # Using the larger observation space size to handle both phases  
-        max_obs_size = max(32 * 32 + 20, 32 * 32 + 30)  # RIFT_OBS_SIZE, TOWN_OBS_SIZE
+        # Grid-based observation space: 17 player stats + 100 grid cells
+        max_obs_size = 117  # OBS_SIZE from rift.h (17 + 100)
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(max_obs_size,), dtype=np.float32
         )
         
-        # Action space: 13 discrete actions
+        # Action space: 21 discrete actions
         # 0-3: Cardinal movement (up, down, left, right)
         # 4-7: Diagonal movement (up-left, up-right, down-left, down-right)
-        # 8: Whirlwind, 9: Health potion, 10: Mana potion, 11: Interact, 12: Noop
-        self.single_action_space = gymnasium.spaces.Discrete(13)
+        # 8: Blizzard, 9: Health potion, 10: Mana potion, 11: Interact, 12: Noop
+        # 13-20: Blizzard while moving (up, down, left, right, up-left, up-right, down-left, down-right)
+        self.single_action_space = gymnasium.spaces.Discrete(21)
         
         self.num_agents = num_envs
         self.render_mode = render_mode

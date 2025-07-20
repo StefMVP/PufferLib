@@ -11,16 +11,41 @@
 #endif
 
 void generate_dummy_action(Rift* env) {
-    // Check if SHIFT is held for manual control
     if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) {
-        // Manual control - map keyboard to actions with diagonal support
         bool w = IsKeyDown(KEY_W);
         bool s = IsKeyDown(KEY_S);
         bool a = IsKeyDown(KEY_A);
         bool d = IsKeyDown(KEY_D);
+        bool space = IsKeyDown(KEY_SPACE);
         
-        // Handle 4-directional movement (no diagonals)
-        if (w) {
+        if (space && (w || s || a || d)) {
+            if (w && a) {
+                env->actions[0] = ACTION_BLIZZARD_UP_LEFT;
+            } else if (w && d) {
+                env->actions[0] = ACTION_BLIZZARD_UP_RIGHT;
+            } else if (s && a) {
+                env->actions[0] = ACTION_BLIZZARD_DOWN_LEFT;
+            } else if (s && d) {
+                env->actions[0] = ACTION_BLIZZARD_DOWN_RIGHT;
+            } else if (w) {
+                env->actions[0] = ACTION_BLIZZARD_UP;
+            } else if (s) {
+                env->actions[0] = ACTION_BLIZZARD_DOWN;
+            } else if (a) {
+                env->actions[0] = ACTION_BLIZZARD_LEFT;
+            } else if (d) {
+                env->actions[0] = ACTION_BLIZZARD_RIGHT;
+            }
+        }
+        else if (w && a) {
+            env->actions[0] = ACTION_MOVE_UP_LEFT;
+        } else if (w && d) {
+            env->actions[0] = ACTION_MOVE_UP_RIGHT;
+        } else if (s && a) {
+            env->actions[0] = ACTION_MOVE_DOWN_LEFT;
+        } else if (s && d) {
+            env->actions[0] = ACTION_MOVE_DOWN_RIGHT;
+        } else if (w) {
             env->actions[0] = ACTION_MOVE_UP;
         } else if (s) {
             env->actions[0] = ACTION_MOVE_DOWN;
@@ -28,8 +53,8 @@ void generate_dummy_action(Rift* env) {
             env->actions[0] = ACTION_MOVE_LEFT;
         } else if (d) {
             env->actions[0] = ACTION_MOVE_RIGHT;
-        } else if (IsKeyDown(KEY_SPACE)) {
-            env->actions[0] = ACTION_WHIRLWIND;
+        } else if (space) {
+            env->actions[0] = ACTION_BLIZZARD;
         } else if (IsKeyDown(KEY_Q)) {
             env->actions[0] = ACTION_USE_HEALTH_POTION;
         } else if (IsKeyDown(KEY_E)) {
@@ -40,8 +65,7 @@ void generate_dummy_action(Rift* env) {
             env->actions[0] = ACTION_NOOP;
         }
     } else {
-        // AI control - random actions
-        env->actions[0] = rand() % 13;  // 0-12 for our action space
+        env->actions[0] = rand() % 21;
     }
 }
 
@@ -68,8 +92,7 @@ int main() {
 
     Rift *env = calloc(1, sizeof(Rift));
     
-    // Allocate observation space - using larger size to handle both rift and town
-    int max_obs_size = (MAP_SIZE + 30); // Matches python observation space
+    uint16_t max_obs_size = OBS_SIZE;
     env->observations = (float*)calloc(max_obs_size, sizeof(float));
     env->actions = (float*)calloc(1, sizeof(float));
     env->rewards = (float*)calloc(1, sizeof(float));
@@ -85,7 +108,6 @@ int main() {
         return 1;
     }
 
-    // Initialize configuration
     env->config = DEFAULT_CONFIG;
     
     init(env);
