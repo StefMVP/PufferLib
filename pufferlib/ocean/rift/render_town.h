@@ -75,22 +75,22 @@ void render_town(Rift* env) {
         DrawRectangle(0, y, GetScreenWidth(), 1, current);
     }
     
-    float glow_pulse = get_ui_pulse(2.0f, 0.7f, 0.3f);
-    
-    bool char_active = (env->town_interface.current_tab == TOWN_TAB_CHARACTER);
-    Color char_color = char_active ? WHITE : (Color){150, 150, 150, 255};
-    DrawText("CHARACTER", 100, 30, 20, char_color);
-    if (char_active) {
-        DrawRectangle(100, 55, 140, 3, (Color){0, 255, 100, 255});
-        DrawRectangle(98, 56, 144, 1, (Color){0, 255, 100, 150});
-    }
+    float glow_pulse = get_ui_pulse(UI_ANIMATION.ui_pulse_slow_speed, UI_ANIMATION.ui_pulse_base, UI_ANIMATION.ui_pulse_amplitude);
     
     bool shop_active = (env->town_interface.current_tab == TOWN_TAB_SHOP);
     Color shop_color = shop_active ? WHITE : (Color){150, 150, 150, 255};
-    DrawText("SHOP", 300, 30, 20, shop_color);
+    DrawText("SHOP (1)", 100, 30, 20, shop_color);
     if (shop_active) {
-        DrawRectangle(300, 55, 80, 3, (Color){100, 150, 255, 255});
-        DrawRectangle(298, 56, 84, 1, (Color){100, 150, 255, 150});
+        DrawRectangle(100, 55, 100, 3, (Color){100, 150, 255, 255});
+        DrawRectangle(98, 56, 104, 1, (Color){100, 150, 255, 150});
+    }
+    
+    bool char_active = (env->town_interface.current_tab == TOWN_TAB_CHARACTER);
+    Color char_color = char_active ? WHITE : (Color){150, 150, 150, 255};
+    DrawText("CHARACTER (2)", 250, 30, 20, char_color);
+    if (char_active) {
+        DrawRectangle(250, 55, 160, 3, (Color){0, 255, 100, 255});
+        DrawRectangle(248, 56, 164, 1, (Color){0, 255, 100, 150});
     }
     
     
@@ -118,7 +118,7 @@ void render_town(Rift* env) {
 void render_character_tab(Rift* env) {
     
     int start_y = 120;
-    float pulse = get_ui_pulse(3.0f, 0.8f, 0.2f);
+    float pulse = get_ui_pulse(UI_ANIMATION.ui_pulse_med_speed, UI_ANIMATION.ui_pulse_base + 0.1f, UI_ANIMATION.ui_pulse_amplitude - 0.1f);
     
     if (env->town_interface.character_mode == CHARACTER_MODE_EQUIPMENT) {
         DrawText("HERO EQUIPMENT", CONTENT_AREA_X, start_y, 24, TOWN_COLORS.quality_text);
@@ -287,9 +287,18 @@ bool get_equipped_item_stats(Rift* env, uint32_t item_type, uint32_t* equipped_s
 void render_shop_tab(Rift* env) {
     
     int start_y = 120;
-    float pulse = get_ui_pulse(4.0f, 0.7f, 0.3f);
+    float pulse = get_ui_pulse(UI_ANIMATION.ui_pulse_fast_speed, UI_ANIMATION.ui_pulse_base, UI_ANIMATION.ui_pulse_amplitude);
     
     DrawText("SHOP", CONTENT_AREA_X, start_y, 24, TOWN_COLORS.quality_text);
+    
+    // Reroll button
+    uint32_t reroll_cost = SHOP_REROLL_BASE_COST * powf(SHOP_REROLL_SCALING, env->current_rift_level - 1);
+    char reroll_text[64];
+    sprintf(reroll_text, "REROLL (R) - %d Gold", reroll_cost);
+    
+    Color reroll_color = (env->player.gold >= reroll_cost) ? 
+        (Color){0, 255, 100, 255} : (Color){255, 100, 100, 255};
+    DrawText(reroll_text, CONTENT_AREA_X + 300, start_y, 16, reroll_color);
     
     ShopLayout shop_layout = SHOP_UI_LAYOUT;
     int container_x = CONTENT_AREA_X;

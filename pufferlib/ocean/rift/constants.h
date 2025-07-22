@@ -18,6 +18,9 @@
 #define ACTION_INTERACT 11
 #define ACTION_NOOP 12
 #define ACTION_EXIT_TOWN 13
+#define ACTION_SWITCH_TO_SHOP 14
+#define ACTION_SWITCH_TO_CHARACTER 15
+#define ACTION_REROLL_SHOP 16
 
 // ============================================================================
 // MAP AND CELL CONSTANTS
@@ -121,11 +124,13 @@
 #define MANA_REGEN_RATE 15
 
 // Gold and vendor
-#define GOLD_DROP_MIN 5
-#define GOLD_DROP_RANGE 15
+#define GOLD_DROP_MIN 15     // Increased from 5
+#define GOLD_DROP_RANGE 25   // Increased from 15
 #define VENDOR_HEALTH_POTION_PRICE 20
 #define VENDOR_MANA_POTION_PRICE 15
 #define VENDOR_STOCK_AMOUNT 10
+#define SHOP_REROLL_BASE_COST 25      // Base gold cost for shop reroll
+#define SHOP_REROLL_SCALING 1.5f      // Multiplier per rift level
 
 // Attack types
 #define ATTACK_TYPE_MELEE 0
@@ -133,6 +138,9 @@
 #define ATTACK_TYPE_CONE_SLAM 2
 #define ATTACK_TYPE_FAST_PROJECTILE 3
 #define ATTACK_TYPE_HOMING_PROJECTILE 4
+#define ATTACK_TYPE_MELEE_PROJECTILE 5
+#define ATTACK_TYPE_BOSS_GROUND_SLAM 6
+#define ATTACK_TYPE_BOSS_CONE 7
 
 // Projectiles
 #define MAX_PROJECTILES 50
@@ -144,7 +152,7 @@
 #define SPAWN_CHECK_DISTANCE 8.0f
 
 // Episode and observation
-#define MAX_EPISODE_LENGTH 6000
+#define MAX_EPISODE_LENGTH 12000  // Doubled for longer episodes
 #define GRID_SIZE 10
 #define GRID_OBS_SIZE (GRID_SIZE * GRID_SIZE)
 #define PLAYER_OBS_SIZE 17
@@ -220,6 +228,384 @@
 #define HERO_FRAMES_WALK 8
 #define HERO_FRAMES_CAST 6
 
+// ============================================================================
+// ANIMATION AND TIMING SYSTEM STRUCTS
+// ============================================================================
+
+typedef struct {
+    int idle_frames, walk_frames, cast_frames;
+    int animation_speed;
+    int idle_state, walk_state, cast_state;
+} HeroAnimationConfig;
+
+typedef struct {
+    float base, amplitude, speed;
+    int alpha;
+} GlowEffectConfig;
+
+typedef struct {
+    float pulse_base, pulse_amplitude, pulse_speed;
+    int fade_speed, halo_offset;
+    int trail_width, trail_length;
+    int lifetime;
+} ProjectileEffectConfig;
+
+typedef struct {
+    float size_multiplier;
+    int health_bar_height, health_bar_offset;
+    float pulse_base, pulse_amplitude;
+    int shadow_alpha, shadow_offset;
+    int core_alpha, aura_alpha;
+} BossEffectConfig;
+
+typedef struct {
+    float glow_speed;
+    int base_alpha;
+    float size_eighth, size_twelfth;
+} ItemEffectConfig;
+
+typedef struct {
+    int base_alpha, duration;
+    int damage_interval;
+    int ice_shard_count;
+    int shard_timing_mult, shard_cycle_frames;
+    int shard_fall_speed, shard_size_min, shard_size_range;
+    int frost_line_size;
+} BlizzardEffectConfig;
+
+typedef struct {
+    float ui_pulse_slow_speed, ui_pulse_med_speed, ui_pulse_fast_speed;
+    float ui_pulse_base, ui_pulse_amplitude;
+    int selection_pulse_alpha;
+} UIAnimationConfig;
+
+static const HeroAnimationConfig HERO_ANIMATION = {
+    .idle_frames = 4, .walk_frames = 8, .cast_frames = 6,
+    .animation_speed = 8,
+    .idle_state = 0, .walk_state = 1, .cast_state = 2
+};
+
+static const GlowEffectConfig GLOW_EFFECT = {
+    .base = 0.8f, .amplitude = 0.2f, .speed = 0.1f,
+    .alpha = 100
+};
+
+static const ProjectileEffectConfig PROJECTILE_EFFECT = {
+    .pulse_base = 0.8f, .pulse_amplitude = 0.3f, .pulse_speed = 0.3f,
+    .fade_speed = 8, .halo_offset = 3,
+    .trail_width = 3, .trail_length = 10,
+    .lifetime = 60
+};
+
+static const BossEffectConfig BOSS_EFFECT = {
+    .size_multiplier = 1.5f,
+    .health_bar_height = 6, .health_bar_offset = 15,
+    .pulse_base = 0.9f, .pulse_amplitude = 0.1f,
+    .shadow_alpha = 150, .shadow_offset = 3,
+    .core_alpha = 200, .aura_alpha = 100
+};
+
+static const ItemEffectConfig ITEM_EFFECT = {
+    .glow_speed = 0.2f, .base_alpha = 150,
+    .size_eighth = 0.125f, .size_twelfth = 0.0833f
+};
+
+static const BlizzardEffectConfig BLIZZARD_EFFECT = {
+    .base_alpha = 150, .duration = 60,
+    .damage_interval = 15,
+    .ice_shard_count = 12,
+    .shard_timing_mult = 5, .shard_cycle_frames = 60,
+    .shard_fall_speed = 2, .shard_size_min = 1, .shard_size_range = 3,
+    .frost_line_size = 3
+};
+
+static const UIAnimationConfig UI_ANIMATION = {
+    .ui_pulse_slow_speed = 2.0f, .ui_pulse_med_speed = 3.0f, .ui_pulse_fast_speed = 4.0f,
+    .ui_pulse_base = 0.7f, .ui_pulse_amplitude = 0.3f,
+    .selection_pulse_alpha = 120
+};
+
+// ============================================================================
+// UI LAYOUT SYSTEM STRUCTS
+// ============================================================================
+
+typedef struct {
+    int screen_width, screen_height;
+    int cell_size, fps;
+} ClientConfig;
+
+typedef struct {
+    int size_12, size_14, size_16, size_18, size_20;
+} TextSizeConfig;
+
+typedef struct {
+    int top_height, top_x, top_y, top_width;
+    int bottom_height, bottom_x, bottom_y, bottom_width;
+    int manual_control_height;
+} TopBottomUIConfig;
+
+typedef struct {
+    int container_x, container_y, container_width, container_height;
+    int content_margin, content_gap;
+    int content_area_width, content_area_x;
+    int stats_panel_width, stats_panel_x;
+} TownContainerConfig;
+
+typedef struct {
+    int content_margin_left, content_margin_indent;
+    int line_height, section_spacing;
+    int stats_offset, stats_line_height;
+} StatsLayoutConfig;
+
+typedef struct {
+    int radius, margin;
+    int potion_size, potion_spacing;
+    int health_bg_r;
+} GlobeUIConfig;
+
+static const ClientConfig CLIENT_CONFIG = {
+    .screen_width = 1024, .screen_height = 768,
+    .cell_size = 24, .fps = 60
+};
+
+static const TextSizeConfig TEXT_SIZES = {
+    .size_12 = 12, .size_14 = 14, .size_16 = 16, .size_18 = 18, .size_20 = 20
+};
+
+static const TopBottomUIConfig TOP_BOTTOM_UI = {
+    .top_height = 60, .top_x = 0, .top_y = 0, .top_width = 1024,
+    .bottom_height = 100, .bottom_x = 0, .bottom_y = 668, .bottom_width = 1024,
+    .manual_control_height = 25
+};
+
+static const TownContainerConfig TOWN_CONTAINER = {
+    .container_x = 50, .container_y = 80, .container_width = 924, .container_height = 688,
+    .content_margin = 20, .content_gap = 20,
+    .content_area_width = 420, .content_area_x = 70,
+    .stats_panel_width = 480, .stats_panel_x = 470
+};
+
+static const StatsLayoutConfig STATS_LAYOUT = {
+    .content_margin_left = 10, .content_margin_indent = 15,
+    .line_height = 20, .section_spacing = 30,
+    .stats_offset = 45, .stats_line_height = 18
+};
+
+static const GlobeUIConfig GLOBE_UI = {
+    .radius = 25, .margin = 10,
+    .potion_size = 15, .potion_spacing = 30,
+    .health_bg_r = 128
+};
+
+// ============================================================================
+// VISUAL EFFECTS RENDERING STRUCTS
+// ============================================================================
+
+typedef struct {
+    int alpha, offset;
+} ShadowConfig;
+
+typedef struct {
+    int height, offset;
+    int boss_height, boss_offset;
+} HealthBarConfig;
+
+typedef struct {
+    int sprite_size;
+    int tileset_cols, tileset_rows;
+} SpriteConfig;
+
+typedef struct {
+    int bg_alpha, bg_color_rgb;
+    int height, line_color_rgb;
+} UIRenderConfig;
+
+typedef struct {
+    int stone_floor, stone_wall, stone_door;
+    int town_floor, vendor_stall;
+} TileConfig;
+
+static const ShadowConfig SHADOW_RENDER = {
+    .alpha = 100, .offset = 2
+};
+
+static const HealthBarConfig HEALTH_BAR_RENDER = {
+    .height = 2, .offset = 5,
+    .boss_height = 6, .boss_offset = 15
+};
+
+static const SpriteConfig SPRITE_RENDER = {
+    .sprite_size = 32,
+    .tileset_cols = 8, .tileset_rows = 8
+};
+
+static const UIRenderConfig UI_RENDER = {
+    .bg_alpha = 200, .bg_color_rgb = 20,
+    .height = 100, .line_color_rgb = 60
+};
+
+static const TileConfig TILE_IDS = {
+    .stone_floor = 0, .stone_wall = 1, .stone_door = 2,
+    .town_floor = 3, .vendor_stall = 4
+};
+
+// ============================================================================
+// COLOR SCHEME STRUCTS
+// ============================================================================
+
+typedef struct {
+    int bg_r, bg_g, bg_b;
+    int clear_bg_r, clear_bg_g, clear_bg_b;
+    int border_rgb;
+} BackgroundColorConfig;
+
+typedef struct {
+    int player_r, player_g, player_b;
+    int armor_r, armor_g, armor_b;
+} PlayerColorConfig;
+
+typedef struct {
+    int zombie_r, zombie_g, zombie_b;
+    int elite_r, elite_g, elite_b;
+    int heavy_r, heavy_g, heavy_b;
+    int light_r, light_g, light_b;
+    int maroon_r;
+} MonsterColorConfig;
+
+typedef struct {
+    int core_r, core_g;
+    int fireball_r, fireball_g;
+    int halo_r, halo_g;
+    int trail_r, trail_g;
+    int blizzard_base_r, blizzard_base_g, blizzard_base_b;
+    int frost_r, frost_g, frost_b;
+} EffectColorConfig;
+
+typedef struct {
+    int common_gray;
+    int white, white_translucent, white_alpha;
+    int rare_blue_r, rare_blue_g, rare_blue_b;
+    int epic_purple_r, epic_purple_g, epic_purple_b;
+    int legendary_orange_r, legendary_orange_g, legendary_orange_b;
+    int default_dark;
+    int light_silver, light_silver_strong, silver;
+} QualityColorConfig;
+
+typedef struct {
+    int brown_handle_light_r, brown_handle_light_g, brown_handle_light_b;
+    int brown_handle_dark_r, brown_handle_dark_g, brown_handle_dark_b;
+    int brown_leather_r, brown_leather_g, brown_leather_b;
+} MaterialColorConfig;
+
+static const BackgroundColorConfig BACKGROUND_COLORS = {
+    .bg_r = 40, .bg_g = 35, .bg_b = 30,
+    .clear_bg_r = 20, .clear_bg_g = 20, .clear_bg_b = 25,
+    .border_rgb = 80
+};
+
+static const PlayerColorConfig PLAYER_COLORS = {
+    .player_r = 138, .player_g = 43, .player_b = 226,
+    .armor_r = 75, .armor_g = 0, .armor_b = 130
+};
+
+static const MonsterColorConfig MONSTER_COLORS = {
+    .zombie_r = 34, .zombie_g = 139, .zombie_b = 34,
+    .elite_r = 220, .elite_g = 20, .elite_b = 60,
+    .heavy_r = 139, .heavy_g = 69, .heavy_b = 19,
+    .light_r = 255, .light_g = 215, .light_b = 0,
+    .maroon_r = 128
+};
+
+static const EffectColorConfig EFFECT_COLORS_EXTENDED = {
+    .core_r = 255, .core_g = 255,
+    .fireball_r = 255, .fireball_g = 69,
+    .halo_r = 255, .halo_g = 140,
+    .trail_r = 255, .trail_g = 100,
+    .blizzard_base_r = 200, .blizzard_base_g = 230, .blizzard_base_b = 255,
+    .frost_r = 173, .frost_g = 216, .frost_b = 230
+};
+
+static const QualityColorConfig QUALITY_COLORS = {
+    .common_gray = 128,
+    .white = 255, .white_translucent = 128, .white_alpha = 64,
+    .rare_blue_r = 100, .rare_blue_g = 149, .rare_blue_b = 237,
+    .epic_purple_r = 163, .epic_purple_g = 53, .epic_purple_b = 238,
+    .legendary_orange_r = 255, .legendary_orange_g = 128, .legendary_orange_b = 0,
+    .default_dark = 64,
+    .light_silver = 192, .light_silver_strong = 224, .silver = 169
+};
+
+static const MaterialColorConfig MATERIAL_COLORS_EXTENDED = {
+    .brown_handle_light_r = 139, .brown_handle_light_g = 115, .brown_handle_light_b = 85,
+    .brown_handle_dark_r = 101, .brown_handle_dark_g = 67, .brown_handle_dark_b = 33,
+    .brown_leather_r = 139, .brown_leather_g = 69, .brown_leather_b = 19
+};
+
+// ============================================================================
+// SHOP AND INVENTORY CONFIGURATION STRUCTS
+// ============================================================================
+
+typedef struct {
+    int items_count, slots_obs;
+    int container_y_offset, container_width_margin;
+    int item_x_margin, item_y_margin;
+    int case_width, selection_margin;
+    int icon_size, icon_margin;
+    int text_spacing_y;
+} ShopConfig;
+
+typedef struct {
+    int slots, max_size;
+    int area_x, area_y;
+    int selection_margin, quality_margin;
+    int icon_offset_reduction;
+    int ilvl_text_margin;
+} InventoryConfig;
+
+typedef struct {
+    int case_bg_r, case_bg_g, case_bg_b, case_bg_a;
+    int case_border_r, case_border_g, case_border_b;
+    int icon_bg_r, icon_bg_g, icon_bg_b, icon_bg_a;
+} ShopColorConfig;
+
+static const ShopConfig SHOP_CONFIGURATION = {
+    .items_count = 10, .slots_obs = 40,
+    .container_y_offset = 50, .container_width_margin = 40,
+    .item_x_margin = 20, .item_y_margin = 10,
+    .case_width = 300, .selection_margin = 12,
+    .icon_size = 60, .icon_margin = 10,
+    .text_spacing_y = 20
+};
+
+static const InventoryConfig INVENTORY_CONFIGURATION = {
+    .slots = 12, .max_size = 20,
+    .area_x = 10, .area_y = 10,
+    .selection_margin = 8, .quality_margin = 2,
+    .icon_offset_reduction = 20, .ilvl_text_margin = 15
+};
+
+static const ShopColorConfig SHOP_COLORS = {
+    .case_bg_r = 20, .case_bg_g = 25, .case_bg_b = 40, .case_bg_a = 240,
+    .case_border_r = 100, .case_border_g = 120, .case_border_b = 160,
+    .icon_bg_r = 40, .icon_bg_g = 45, .icon_bg_b = 60, .icon_bg_a = 200
+};
+
+// ============================================================================
+// CALCULATED GAME CONSTANTS
+// ============================================================================
+
+typedef struct {
+    int map_size;
+    int monsters_to_spawn;
+    float spawn_density;
+} MapCalculationConfig;
+
+static const MapCalculationConfig MAP_CALCULATIONS = {
+    .map_size = 1900,  // MAP_WIDTH * MAP_HEIGHT = 50 * 38
+    .monsters_to_spawn = 38,  // (int)(1900 * 0.02f)
+    .spawn_density = 0.02f
+};
+
 // Tile constants
 #define TILE_STONE_FLOOR 0
 #define TILE_STONE_WALL 1
@@ -293,6 +679,11 @@
 
 // Projectile rendering
 #define PROJECTILE_FIREBALL 0
+#define PROJECTILE_ICE_SHARD 1
+#define PROJECTILE_STONE_CHUNK 2
+#define PROJECTILE_ENERGY_BOLT 3
+#define PROJECTILE_DARK_ORB 4
+#define PROJECTILE_MELEE_STRIKE 5
 #define PROJECTILE_LIFETIME 60
 #define PROJECTILE_SIXTH 0.167f
 #define CORE_COLOR_R 255
@@ -398,23 +789,23 @@
 #define RIFT_TIER_3_MAX 10       // Rifts 7-10: Late game
 // Rift 11+: End game
 
-// Tier 1 (Rifts 1-3): Learning phase
-#define TIER_1_COMMON_CHANCE 75
-#define TIER_1_RARE_CHANCE 25
-#define TIER_1_EPIC_CHANCE 0
+// Tier 1 (Rifts 1-3): Learning phase - now with epic chance
+#define TIER_1_COMMON_CHANCE 65
+#define TIER_1_RARE_CHANCE 30
+#define TIER_1_EPIC_CHANCE 5
 #define TIER_1_LEGENDARY_CHANCE 0
 
-// Tier 2 (Rifts 4-6): Progression phase  
-#define TIER_2_COMMON_CHANCE 50
+// Tier 2 (Rifts 4-6): Progression phase - now with legendary chance
+#define TIER_2_COMMON_CHANCE 40
 #define TIER_2_RARE_CHANCE 45
-#define TIER_2_EPIC_CHANCE 5
-#define TIER_2_LEGENDARY_CHANCE 0
+#define TIER_2_EPIC_CHANCE 13
+#define TIER_2_LEGENDARY_CHANCE 2
 
-// Tier 3 (Rifts 7-10): Advanced phase
-#define TIER_3_COMMON_CHANCE 30
-#define TIER_3_RARE_CHANCE 50
-#define TIER_3_EPIC_CHANCE 18
-#define TIER_3_LEGENDARY_CHANCE 2
+// Tier 3 (Rifts 7-10): Advanced phase - increased epic/legendary
+#define TIER_3_COMMON_CHANCE 25
+#define TIER_3_RARE_CHANCE 45
+#define TIER_3_EPIC_CHANCE 25
+#define TIER_3_LEGENDARY_CHANCE 5
 
 // End game (Rift 11+): Expert phase
 #define ENDGAME_COMMON_CHANCE 20
@@ -446,8 +837,8 @@
 #define TOWN_INPUT_COOLDOWN 8       // Frames between WASD inputs (prevents rapid navigation)
 
 // Town interface modes
-#define TOWN_TAB_CHARACTER 0
-#define TOWN_TAB_SHOP 1
+#define TOWN_TAB_SHOP 0
+#define TOWN_TAB_CHARACTER 1
 
 #define CHARACTER_MODE_EQUIPMENT 0
 #define CHARACTER_MODE_INVENTORY 1

@@ -48,7 +48,7 @@ static void render_player(Rift* env, float cell_size) {
         Color player_color = RIFT_COLORS.player;
         Color armor_color = RIFT_COLORS.armor;
         
-        draw_shadow(screen_pos.x, screen_pos.y, cell_size/3, SHADOW_OFFSET, SHADOW_ALPHA);
+        draw_shadow(screen_pos.x, screen_pos.y, cell_size/3, SHADOW_RENDER.offset, SHADOW_RENDER.alpha);
         DrawCircle(screen_pos.x, screen_pos.y, cell_size/3, player_color);
         DrawCircle(screen_pos.x, screen_pos.y, cell_size/4, armor_color);
         return;
@@ -76,20 +76,20 @@ static void render_player(Rift* env, float cell_size) {
         sprites->hero_animation_timer = 0;
     }
     
-    if (sprites->hero_animation_timer >= HERO_ANIM_SPEED) {
+    if (sprites->hero_animation_timer >= HERO_ANIMATION.animation_speed) {
         sprites->hero_animation_timer = 0;
         sprites->hero_frame++;
         
         switch (sprites->hero_animation_state) {
             case HERO_ANIM_IDLE:
-                if (sprites->hero_frame >= HERO_FRAMES_IDLE) sprites->hero_frame = 0;
+                if (sprites->hero_frame >= HERO_ANIMATION.idle_frames) sprites->hero_frame = 0;
                 break;
             case HERO_ANIM_WALK:
-                if (sprites->hero_frame >= HERO_FRAMES_WALK) sprites->hero_frame = 0;
+                if (sprites->hero_frame >= HERO_ANIMATION.walk_frames) sprites->hero_frame = 0;
                 break;
             case HERO_ANIM_CAST:
-                if (sprites->hero_frame >= HERO_FRAMES_CAST) {
-                    sprites->hero_animation_state = HERO_ANIM_IDLE;
+                if (sprites->hero_frame >= HERO_ANIMATION.cast_frames) {
+                    sprites->hero_animation_state = HERO_ANIMATION.idle_state;
                     sprites->hero_frame = 0;
                 }
                 break;
@@ -102,15 +102,15 @@ static void render_player(Rift* env, float cell_size) {
     switch (sprites->hero_animation_state) {
         case HERO_ANIM_WALK:
             current_texture = sprites->hero_walk;
-            max_frames = HERO_FRAMES_WALK;
+            max_frames = HERO_ANIMATION.walk_frames;
             break;
         case HERO_ANIM_CAST:
             current_texture = sprites->hero_cast;
-            max_frames = HERO_FRAMES_CAST;
+            max_frames = HERO_ANIMATION.cast_frames;
             break;
         default:
             current_texture = sprites->hero_idle;
-            max_frames = HERO_FRAMES_IDLE;
+            max_frames = HERO_ANIMATION.idle_frames;
             break;
     }
     
@@ -130,7 +130,7 @@ static void render_player(Rift* env, float cell_size) {
         cell_size
     };
     
-    draw_shadow(screen_pos.x + cell_size/2, screen_pos.y + cell_size/2, cell_size/4, SHADOW_OFFSET, SHADOW_ALPHA);
+    draw_shadow(screen_pos.x + cell_size/2, screen_pos.y + cell_size/2, cell_size/4, SHADOW_RENDER.offset, SHADOW_RENDER.alpha);
     
     DrawTexturePro(current_texture, source, dest, (Vector2){0, 0}, 0.0f, WHITE);
 }
@@ -152,7 +152,7 @@ static void render_monsters(Rift* env, float cell_size) {
                 cell_size * size_multiplier
             };
             
-            draw_shadow(dest.x + dest.width/2, dest.y + dest.height/2, dest.width/4, SHADOW_OFFSET, SHADOW_ALPHA);
+            draw_shadow(dest.x + dest.width/2, dest.y + dest.height/2, dest.width/4, SHADOW_RENDER.offset, SHADOW_RENDER.alpha);
             
             DrawTexturePro(env->client->sprites.monsters[monster_type], source, dest, 
                           (Vector2){0, 0}, 0.0f, WHITE);
@@ -194,14 +194,14 @@ static void render_boss(Rift* env, float cell_size) {
             cell_size * 2
         };
         
-        float pulse = calculate_pulse(env->tick, GLOW_SPEED, BOSS_PULSE_BASE, BOSS_PULSE_AMPLITUDE);
+        float pulse = calculate_pulse(env->tick, GLOW_EFFECT.speed, BOSS_EFFECT.pulse_base, BOSS_EFFECT.pulse_amplitude);
         dest.width *= pulse;
         dest.height *= pulse;
         dest.x -= (dest.width - cell_size * 2) / 2;
         dest.y -= (dest.height - cell_size * 2) / 2;
         
-        DrawCircle(dest.x + dest.width/2 + BOSS_SHADOW_OFFSET, dest.y + dest.height/2 + BOSS_SHADOW_OFFSET, 
-                  dest.width/4, (Color){0, 0, 0, BOSS_SHADOW_ALPHA});
+        DrawCircle(dest.x + dest.width/2 + BOSS_EFFECT.shadow_offset, dest.y + dest.height/2 + BOSS_EFFECT.shadow_offset, 
+                  dest.width/4, (Color){0, 0, 0, BOSS_EFFECT.shadow_alpha});
         
         DrawTexturePro(env->client->sprites.boss_texture, source, dest, (Vector2){0, 0}, 0.0f, WHITE);
         
@@ -273,14 +273,59 @@ static void render_projectiles(Rift* env, float cell_size) {
         screen_pos.y += half_cell;
         
         Color projectile_color;
+        Color halo_color;
+        Color core_color;
         float size_multiplier;
         
-        if (env->projectiles[i].type == PROJECTILE_FIREBALL) {
-            projectile_color = (Color){FIREBALL_COLOR_R, FIREBALL_COLOR_G, 0, 255};
-            size_multiplier = calculate_pulse(env->tick + i, FIREBALL_PULSE_SPEED, FIREBALL_PULSE_BASE, FIREBALL_PULSE_AMPLITUDE);
-        } else {
-            projectile_color = RED;
-            size_multiplier = 1.0f;
+        switch (env->projectiles[i].type) {
+            case PROJECTILE_FIREBALL:
+                projectile_color = (Color){FIREBALL_COLOR_R, FIREBALL_COLOR_G, 0, 255};
+                halo_color = (Color){HALO_COLOR_R, HALO_COLOR_G, 0, 255};
+                core_color = (Color){CORE_COLOR_R, CORE_COLOR_G, 0, 255};
+                size_multiplier = calculate_pulse(env->tick + i, FIREBALL_PULSE_SPEED, FIREBALL_PULSE_BASE, FIREBALL_PULSE_AMPLITUDE);
+                break;
+                
+            case PROJECTILE_ICE_SHARD:
+                projectile_color = (Color){150, 200, 255, 255}; // Light blue
+                halo_color = (Color){200, 230, 255, 255};        // Pale blue
+                core_color = (Color){255, 255, 255, 255};        // White
+                size_multiplier = 0.8f;
+                break;
+                
+            case PROJECTILE_STONE_CHUNK:
+                projectile_color = (Color){139, 115, 85, 255};  // Brown
+                halo_color = (Color){169, 169, 169, 255};       // Gray
+                core_color = (Color){101, 67, 33, 255};         // Dark brown
+                size_multiplier = 1.2f;
+                break;
+                
+            case PROJECTILE_ENERGY_BOLT:
+                projectile_color = (Color){255, 255, 0, 255};   // Yellow
+                halo_color = (Color){255, 215, 0, 255};         // Gold
+                core_color = (Color){255, 255, 200, 255};       // Light yellow
+                size_multiplier = 0.9f;
+                break;
+                
+            case PROJECTILE_DARK_ORB:
+                projectile_color = (Color){163, 53, 238, 255};  // Purple
+                halo_color = (Color){138, 43, 226, 255};        // Blue violet
+                core_color = (Color){75, 0, 130, 255};          // Indigo
+                size_multiplier = 1.1f;
+                break;
+                
+            case PROJECTILE_MELEE_STRIKE:
+                projectile_color = (Color){255, 0, 0, 255};     // Red
+                halo_color = (Color){255, 69, 0, 255};          // Orange red
+                core_color = (Color){255, 100, 100, 255};       // Light red
+                size_multiplier = 0.7f;
+                break;
+                
+            default:
+                projectile_color = RED;
+                halo_color = (Color){HALO_COLOR_R, HALO_COLOR_G, 0, 255};
+                core_color = (Color){CORE_COLOR_R, CORE_COLOR_G, 0, 255};
+                size_multiplier = 1.0f;
+                break;
         }
         
         float lifetime_ratio = (float)env->projectiles[i].lifetime / PROJECTILE_LIFETIME;
@@ -292,9 +337,12 @@ static void render_projectiles(Rift* env, float cell_size) {
         uint32_t half_alpha = alpha >> 1;
         uint32_t third_alpha = alpha / 3;
         
-        DrawCircle(screen_pos.x, screen_pos.y, radius + PROJECTILE_HALO_OFFSET, (Color){HALO_COLOR_R, HALO_COLOR_G, 0, half_alpha});
+        halo_color = fade_color(halo_color, half_alpha);
+        core_color = fade_color(core_color, alpha);
+        
+        DrawCircle(screen_pos.x, screen_pos.y, radius + PROJECTILE_HALO_OFFSET, halo_color);
         DrawCircle(screen_pos.x, screen_pos.y, radius, projectile_color);
-        DrawCircle(screen_pos.x, screen_pos.y, half_radius, (Color){CORE_COLOR_R, CORE_COLOR_G, 0, alpha});
+        DrawCircle(screen_pos.x, screen_pos.y, half_radius, core_color);
         
         Vector2 trail_end = {
             screen_pos.x - env->projectiles[i].vel_x * TRAIL_LENGTH,

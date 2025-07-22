@@ -28,7 +28,7 @@ static const GameConfig DEFAULT_CONFIG = {
     .max_monsters = MAX_MONSTERS,
     .max_items = MAX_ITEMS,
     .monster_spawn_rate = 0.8f,
-    .item_drop_rate = 0.3f,
+    .item_drop_rate = 0.7f,  // Increased from 0.3f for more gold drops
     .player_start_health = PLAYER_MAX_HEALTH,
     .player_start_mana = PLAYER_MAX_MANA,
     .starting_gold = 500,
@@ -42,7 +42,7 @@ static const GameConfig DEFAULT_CONFIG = {
 typedef struct InventorySlot {
     uint32_t item_type;
     uint32_t item_quality;
-    uint32_t item_level;       // Item level (ilvl)
+    uint32_t item_level;
     uint32_t stack_size;
     uint32_t stat_bonuses[4];
     uint16_t item_value;
@@ -68,6 +68,8 @@ typedef struct Player {
     uint32_t low_health_penalty_cooldown;
     uint32_t inventory_count;
     uint32_t selected_inventory_slot;
+    uint32_t stuck_timer;           // Anti-stuck mechanism
+    float last_position_x, last_position_y;
 } Player;
 
 typedef struct Monster {
@@ -107,12 +109,12 @@ typedef struct Item {
 typedef struct Projectile {
     float x, y;
     float vel_x, vel_y;
-    float target_x, target_y; // For homing projectiles
+    float target_x, target_y;
     uint32_t type;
     uint32_t damage;
     uint32_t lifetime;
     uint32_t active;
-    uint32_t homing; // Is this a homing projectile?
+    uint32_t homing;
 } Projectile;
 
 typedef struct BlizzardArea {
@@ -148,7 +150,6 @@ typedef struct HeroStats {
 } HeroStats;
 
 typedef struct Equipment {
-    // LEFT COLUMN - From top to bottom
     uint32_t shoulders_type;
     uint32_t shoulders_quality;
     uint32_t shoulders_level;
@@ -411,6 +412,7 @@ void spawn_boss(Rift* env);
 
 void spawn_projectile(Rift* env, float start_x, float start_y, float target_x, float target_y, uint32_t type, uint32_t damage);
 void execute_monster_attack(Rift* env, Monster* monster);
+void execute_boss_attack(Rift* env);
 void update_projectiles(Rift* env);
 
 // Scaling functions
@@ -568,8 +570,8 @@ void spawn_monster_pack(Rift* env, float center_x, float center_y, uint32_t pack
                         env->monsters[i].max_health = env->monsters[i].health;
                         env->monsters[i].damage = (uint32_t)GetScaledMonsterDamage(MONSTER_BASE_DAMAGE, env->current_rift_level);
                         env->monsters[i].speed = GetScaledMonsterSpeed(0.5f, env->current_rift_level);
-                        env->monsters[i].attack_range = 1.5f; // Melee range
-                        env->monsters[i].attack_type = ATTACK_TYPE_MELEE;
+                        env->monsters[i].attack_range = 2.5f; // Short-range projectile
+                        env->monsters[i].attack_type = ATTACK_TYPE_MELEE_PROJECTILE;
                         break;
                 }
                 
@@ -663,8 +665,8 @@ void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint32_t pack
                         env->monsters[i].max_health = env->monsters[i].health;
                         env->monsters[i].damage = (uint32_t)(GetScaledMonsterDamage(MONSTER_BASE_DAMAGE, env->current_rift_level) * 0.75f);
                         env->monsters[i].speed = GetScaledMonsterSpeed(0.5f, env->current_rift_level);
-                        env->monsters[i].attack_range = 1.5f; // Melee range
-                        env->monsters[i].attack_type = ATTACK_TYPE_MELEE;
+                        env->monsters[i].attack_range = 2.5f; // Short-range projectile
+                        env->monsters[i].attack_type = ATTACK_TYPE_MELEE_PROJECTILE;
                         break;
                 }
                 
@@ -792,6 +794,11 @@ void update_player(Rift* env) {
             handle_town_navigation(env, action);
             return;
         }
+        // Handle tab switching (1/2 keys)
+        if (action == ACTION_SWITCH_TO_SHOP || action == ACTION_SWITCH_TO_CHARACTER) {
+            handle_town_navigation(env, action);
+            return;
+        }
         // Handle exit town action (Z key)
         if (action == ACTION_EXIT_TOWN) {
             transition_to_rift(env);
@@ -864,13 +871,15 @@ void update_player(Rift* env) {
             break;
         case ACTION_USE_HEALTH_POTION:
             if (env->player.alive && env->player.health_potion_cooldown == 0 && env->player.health < env->player.max_health) {
-                env->player.health = clamp_uint32(env->player.health + HEALTH_POTION_HEAL, 0, env->player.max_health);
+                uint32_t heal_amount = env->player.max_health * 0.4f; // 40% of max health
+                env->player.health = clamp_uint32(env->player.health + heal_amount, 0, env->player.max_health);
                 env->player.health_potion_cooldown = HEALTH_POTION_COOLDOWN;
             }
             break;
         case ACTION_USE_MANA_POTION:
             if (env->player.alive && env->player.mana_potion_cooldown == 0 && env->player.mana < env->player.max_mana) {
-                env->player.mana = clamp_uint32(env->player.mana + MANA_POTION_RESTORE, 0, env->player.max_mana);
+                uint32_t mana_amount = env->player.max_mana * 0.4f; // 40% of max mana
+                env->player.mana = clamp_uint32(env->player.mana + mana_amount, 0, env->player.max_mana);
                 env->player.mana_potion_cooldown = MANA_POTION_COOLDOWN;
             }
             break;
@@ -1158,45 +1167,86 @@ void execute_monster_attack(Rift* env, Monster* monster) {
             break;
             
         case ATTACK_TYPE_PROJECTILE:
+            // Elite monsters use dark orbs
             spawn_projectile(env, monster->x, monster->y, env->player.x, env->player.y, 
-                           PROJECTILE_FIREBALL, monster->damage);
+                           PROJECTILE_DARK_ORB, monster->damage);
             break;
             
         case ATTACK_TYPE_FAST_PROJECTILE:
+            // Light monsters use energy bolts
             spawn_fast_projectile(env, monster->x, monster->y, env->player.x, env->player.y, 
-                                PROJECTILE_FIREBALL, monster->damage);
+                                PROJECTILE_ENERGY_BOLT, monster->damage);
             break;
             
         case ATTACK_TYPE_HOMING_PROJECTILE:
+            // Mage monsters use ice shards
             spawn_homing_projectile(env, monster->x, monster->y, env->player.x, env->player.y, 
-                                  PROJECTILE_FIREBALL, monster->damage);
+                                  PROJECTILE_ICE_SHARD, monster->damage);
+            break;
+            
+        case ATTACK_TYPE_MELEE_PROJECTILE:
+            // Ex-melee monsters use short-range red strikes
+            spawn_projectile(env, monster->x, monster->y, env->player.x, env->player.y, 
+                           PROJECTILE_MELEE_STRIKE, monster->damage);
             break;
             
         case ATTACK_TYPE_CONE_SLAM:
-            monster->attack_animation_timer = 30; 
+            // Heavy monsters create a cone of stone chunks
+            monster->attack_animation_timer = 30;
             
-            float dx = env->player.x - monster->x;
-            float dy = env->player.y - monster->y;
-            float dist_to_player = sqrtf(dx * dx + dy * dy);
+            float angle_to_player = atan2f(env->player.y - monster->y, env->player.x - monster->x);
             
-            if (dist_to_player <= monster->attack_range + 1.0f) {
-                float angle_to_player = atan2f(dy, dx);
-                float monster_facing = atan2f(env->player.y - monster->y, env->player.x - monster->x);
-                float angle_diff = fabsf(angle_to_player - monster_facing);
-                
-                if (angle_diff <= PI/3 || angle_diff >= (2*PI - PI/3)) {
-                    if ((rand() % 100) < env->player.dodge_chance) {
-                    } else {
-                        if (monster->damage >= env->player.health) {
-                            env->player.health = 0;
-                            env->player.alive = 0;
-                        } else {
-                            env->player.health -= monster->damage;
-                        }
-                    }
-                }
+            // Spawn 3 projectiles in a cone toward the player
+            for (int i = -1; i <= 1; i++) {
+                float cone_angle = angle_to_player + (i * PI / 4.0f); // 45 degree cone
+                float target_x = monster->x + cosf(cone_angle) * (monster->attack_range + 1.0f);
+                float target_y = monster->y + sinf(cone_angle) * (monster->attack_range + 1.0f);
+                spawn_projectile(env, monster->x, monster->y, target_x, target_y, 
+                               PROJECTILE_STONE_CHUNK, monster->damage);
             }
             break;
+    }
+}
+
+void execute_boss_attack(Rift* env) {
+    float dist = distance(env->player.x, env->player.y, env->boss.x, env->boss.y);
+    
+    // Boss has three attack types: projectiles (long range), ground slam (medium range), cone attack (close range)
+    if (dist <= 8.0f && env->boss.attack_cooldown == 0) {
+        env->boss.attack_cooldown = GetScaledAttackCooldown(30, env->current_rift_level);
+        
+        // Choose attack based on distance and special cooldown
+        if (dist <= 3.0f && env->boss.special_attack_cooldown == 0) {
+            // Close range: Ground slam area attack
+            env->boss.special_attack_cooldown = GetScaledAttackCooldown(90, env->current_rift_level);
+            
+            // Spawn multiple projectiles in all directions for ground slam effect
+            for (int angle = 0; angle < 360; angle += 45) {
+                float rad = angle * PI / 180.0f;
+                float target_x = env->boss.x + cosf(rad) * 4.0f;
+                float target_y = env->boss.y + sinf(rad) * 4.0f;
+                spawn_projectile(env, env->boss.x, env->boss.y, target_x, target_y, 
+                               PROJECTILE_STONE_CHUNK, env->boss.damage);
+            }
+            
+        } else if (dist <= 5.0f && env->boss.special_attack_cooldown <= 30) {
+            // Medium range: Cone attack in player direction
+            float angle_to_player = atan2f(env->player.y - env->boss.y, env->player.x - env->boss.x);
+            
+            // Spawn 5 projectiles in a cone
+            for (int i = -2; i <= 2; i++) {
+                float cone_angle = angle_to_player + (i * PI / 6.0f); // 30 degree cone
+                float target_x = env->boss.x + cosf(cone_angle) * 6.0f;
+                float target_y = env->boss.y + sinf(cone_angle) * 6.0f;
+                spawn_projectile(env, env->boss.x, env->boss.y, target_x, target_y, 
+                               PROJECTILE_FIREBALL, env->boss.damage);
+            }
+            
+        } else {
+            // Long range: Homing projectile
+            spawn_homing_projectile(env, env->boss.x, env->boss.y, env->player.x, env->player.y, 
+                                  PROJECTILE_DARK_ORB, env->boss.damage);
+        }
     }
 }
 
@@ -1609,7 +1659,7 @@ void GetQualityChances(uint32_t rift_level, int* common, int* rare, int* epic, i
 int GetScaledItemLevel(uint32_t rift_level) {
     int base_ilvl = (int)(rift_level * RIFT_ILVL_BASE_MULTIPLIER);
     int variation = (rand() % (2 * RIFT_ILVL_RANDOM_RANGE + 1)) - RIFT_ILVL_RANDOM_RANGE;
-    return base_ilvl + variation;
+    return base_ilvl + variation + 2;  // +2 boost to all item levels for faster scaling
 }
 
 int GetScaledItemPrice(int base_price, uint32_t rift_level, uint32_t quality) {
@@ -1744,7 +1794,7 @@ void init_hero_stats(Rift* env) {
     
     env->town_interface.frames_remaining = TOWN_MODE_TIME_LIMIT;
     env->town_interface.warning_phase = 0;
-    env->town_interface.current_tab = TOWN_TAB_CHARACTER;
+    env->town_interface.current_tab = TOWN_TAB_SHOP;
     env->town_interface.character_mode = CHARACTER_MODE_EQUIPMENT;
     env->town_interface.selected_item_index = 0;
     env->town_interface.equipment_slot = 0;
@@ -1759,6 +1809,7 @@ void give_stat_based_rewards(Rift* env, uint32_t old_str, uint32_t old_dex, uint
     int dex_diff = env->hero_stats.total_dexterity - old_dex;  
     int int_diff = env->hero_stats.total_intelligence - old_int;
     int vit_diff = env->hero_stats.total_vitality - old_vit;
+    int total_stat_diff = str_diff + dex_diff + int_diff + vit_diff;
     
     // Calculate total ilvl from all equipment
     uint32_t current_total_ilvl = env->equipment.weapon_level + env->equipment.offhand_level + 
@@ -1770,9 +1821,26 @@ void give_stat_based_rewards(Rift* env, uint32_t old_str, uint32_t old_dex, uint
     
     int ilvl_diff = current_total_ilvl - old_total_ilvl;
     
-    // Give rewards for stat increases, penalties for decreases
-    float stat_reward = (str_diff + dex_diff + int_diff + vit_diff) * 
-                       (str_diff + dex_diff + int_diff + vit_diff >= 0 ? TOWN_STAT_INCREASE_REWARD : TOWN_STAT_DECREASE_PENALTY);
+    // Enhanced penalty system for bad purchases
+    float stat_reward = 0.0f;
+    
+    if (total_stat_diff > 0) {
+        // Good purchase: stats improved
+        stat_reward = total_stat_diff * TOWN_STAT_INCREASE_REWARD;
+    } else if (total_stat_diff < 0) {
+        // Bad purchase: stats decreased - double penalty
+        stat_reward = total_stat_diff * TOWN_STAT_DECREASE_PENALTY * 2.0f;
+    } else if (total_stat_diff == 0) {
+        // No stat change - check if ilvl went down (very bad)
+        if (ilvl_diff < 0) {
+            // Bought lower ilvl item with same stats - major penalty
+            stat_reward = -3.0f * abs(ilvl_diff);
+        } else if (ilvl_diff == 0) {
+            // Same ilvl, same stats - wasted gold penalty
+            stat_reward = -2.0f;
+        }
+        // If ilvl_diff > 0 with same stats, that's neutral (no penalty/reward)
+    }
     
     // Give rewards for ilvl increases, penalties for decreases  
     float ilvl_reward = ilvl_diff * (ilvl_diff >= 0 ? TOWN_ILVL_INCREASE_REWARD : TOWN_ILVL_DECREASE_PENALTY);
@@ -1867,7 +1935,7 @@ void calculate_total_stats(Rift* env) {
     
     env->hero_stats.average_item_level = equipped_items > 0 ? (total_ilvl + equipped_items - 1) / equipped_items : 0; // Round up
     
-    env->player.max_health = PLAYER_MAX_HEALTH + (env->hero_stats.total_vitality * 5);
+    env->player.max_health = PLAYER_MAX_HEALTH + (env->hero_stats.total_vitality * 5) + (env->hero_stats.total_strength * 3); // Strength also boosts health
     env->player.max_mana = PLAYER_MAX_MANA + (env->hero_stats.total_intelligence * 2);
     env->player.damage = PLAYER_BASE_DAMAGE + (env->hero_stats.total_strength * 2) + (env->hero_stats.total_intelligence * 1); // Int adds damage too
     env->player.dodge_chance = env->hero_stats.total_dexterity; // 1% dodge per dex point, max 50%
@@ -2275,7 +2343,7 @@ void transition_to_town(Rift* env) {
     
     env->town_interface.frames_remaining = TOWN_MODE_TIME_LIMIT;
     env->town_interface.warning_phase = 0;
-    env->town_interface.current_tab = TOWN_TAB_CHARACTER;
+    env->town_interface.current_tab = TOWN_TAB_SHOP;
     env->town_interface.character_mode = CHARACTER_MODE_EQUIPMENT;
     env->town_interface.selected_item_index = 0;
     env->town_interface.equipment_slot = 0;
@@ -2372,17 +2440,8 @@ void handle_town_navigation(Rift* env, int action) {
     }
     
     switch (action) {
-        case ACTION_MOVE_LEFT:
-            if (env->town_interface.current_tab == TOWN_TAB_SHOP) {
-                env->town_interface.current_tab = TOWN_TAB_CHARACTER;
-                env->town_interface.character_mode = CHARACTER_MODE_EQUIPMENT; 
-                env->town_interface.selected_item_index = 0;
-                env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
-            } else {
-            }
-            break;
-        case ACTION_MOVE_RIGHT:
-            if (env->town_interface.current_tab == TOWN_TAB_CHARACTER) {
+        case ACTION_SWITCH_TO_SHOP:
+            if (env->town_interface.current_tab != TOWN_TAB_SHOP) {
                 env->town_interface.current_tab = TOWN_TAB_SHOP;
                 env->town_interface.shop_scroll_offset = 0;
                 
@@ -2390,12 +2449,96 @@ void handle_town_navigation(Rift* env, int action) {
                 while (first_available < SHOP_ITEMS_COUNT && !env->shop_items[first_available].available) {
                     first_available++;
                 }
-                
                 env->town_interface.selected_item_index = (first_available < SHOP_ITEMS_COUNT) ? first_available : 0;
-                env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
-                
-            } else {
             }
+            env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
+            break;
+        case ACTION_SWITCH_TO_CHARACTER:
+            if (env->town_interface.current_tab != TOWN_TAB_CHARACTER) {
+                env->town_interface.current_tab = TOWN_TAB_CHARACTER;
+                env->town_interface.character_mode = CHARACTER_MODE_EQUIPMENT;
+                env->town_interface.selected_item_index = 0;
+            }
+            env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
+            break;
+            
+        case ACTION_REROLL_SHOP:
+            if (env->town_interface.current_tab == TOWN_TAB_SHOP) {
+                uint32_t reroll_cost = SHOP_REROLL_BASE_COST * powf(SHOP_REROLL_SCALING, env->current_rift_level - 1);
+                if (env->player.gold >= reroll_cost) {
+                    env->player.gold -= reroll_cost;
+                    generate_shop_inventory(env);
+                    env->town_interface.selected_item_index = 0;
+                    env->town_interface.shop_scroll_offset = 0;
+                }
+            }
+            env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
+            break;
+        case ACTION_MOVE_LEFT:
+            if (env->town_interface.current_tab == TOWN_TAB_CHARACTER && env->town_interface.character_mode == CHARACTER_MODE_EQUIPMENT) {
+                int current_slot = env->town_interface.selected_item_index;
+                if (current_slot >= 0 && current_slot < 13) {
+                    int slot_positions[13][2] = {
+                        {0, 0}, {0, 1}, {0, 2}, {0, 3},
+                        {1, 0}, {1, 1}, {1, 2}, {1, 3}, {1, 4},
+                        {2, 0}, {2, 1}, {2, 2}, {2, 3}
+                    };
+                    int current_col = slot_positions[current_slot][0];
+                    int current_row = slot_positions[current_slot][1];
+                    
+                    int target_col = (current_col > 0) ? current_col - 1 : 2;
+                    
+                    for (int i = 0; i < 13; i++) {
+                        if (slot_positions[i][0] == target_col && slot_positions[i][1] == current_row) {
+                            env->town_interface.selected_item_index = i;
+                            break;
+                        }
+                    }
+                    
+                    if (env->town_interface.selected_item_index == current_slot) {
+                        for (int i = 0; i < 13; i++) {
+                            if (slot_positions[i][0] == target_col) {
+                                env->town_interface.selected_item_index = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
+            break;
+        case ACTION_MOVE_RIGHT:
+            if (env->town_interface.current_tab == TOWN_TAB_CHARACTER && env->town_interface.character_mode == CHARACTER_MODE_EQUIPMENT) {
+                int current_slot = env->town_interface.selected_item_index;
+                if (current_slot >= 0 && current_slot < 13) {
+                    int slot_positions[13][2] = {
+                        {0, 0}, {0, 1}, {0, 2}, {0, 3},
+                        {1, 0}, {1, 1}, {1, 2}, {1, 3}, {1, 4},
+                        {2, 0}, {2, 1}, {2, 2}, {2, 3}
+                    };
+                    int current_col = slot_positions[current_slot][0];
+                    int current_row = slot_positions[current_slot][1];
+                    
+                    int target_col = (current_col < 2) ? current_col + 1 : 0;
+                    
+                    for (int i = 0; i < 13; i++) {
+                        if (slot_positions[i][0] == target_col && slot_positions[i][1] == current_row) {
+                            env->town_interface.selected_item_index = i;
+                            break;
+                        }
+                    }
+                    
+                    if (env->town_interface.selected_item_index == current_slot) {
+                        for (int i = 0; i < 13; i++) {
+                            if (slot_positions[i][0] == target_col) {
+                                env->town_interface.selected_item_index = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
             break;
         case ACTION_MOVE_UP:
             if (env->town_interface.current_tab == TOWN_TAB_CHARACTER && env->town_interface.character_mode == CHARACTER_MODE_EQUIPMENT) {
@@ -2421,6 +2564,17 @@ void handle_town_navigation(Rift* env, int action) {
                 
                 if (new_idx >= 0 && env->shop_items[new_idx].available) {
                     env->town_interface.selected_item_index = new_idx;
+                    
+                    int item_y_position = SHOP_CONFIGURATION.item_y_margin + new_idx * SHOP_UI_LAYOUT.item_spacing;
+                    int visible_area_top = -env->town_interface.shop_scroll_offset;
+                    int visible_area_bottom = visible_area_top + SHOP_UI_LAYOUT.scroll_container_height;
+                    
+                    if (item_y_position < visible_area_top) {
+                        env->town_interface.shop_scroll_offset = -(item_y_position - SHOP_CONFIGURATION.item_y_margin);
+                    }
+                    else if (item_y_position + SHOP_UI_LAYOUT.item_height > visible_area_bottom) {
+                        env->town_interface.shop_scroll_offset = -(item_y_position + SHOP_UI_LAYOUT.item_height - SHOP_UI_LAYOUT.scroll_container_height - SHOP_CONFIGURATION.item_y_margin);
+                    }
                 }
             } else {
                 if (env->town_interface.selected_item_index > 0) {
@@ -2453,6 +2607,17 @@ void handle_town_navigation(Rift* env, int action) {
                 
                 if (new_idx < SHOP_ITEMS_COUNT && env->shop_items[new_idx].available) {
                     env->town_interface.selected_item_index = new_idx;
+                    
+                    int item_y_position = SHOP_CONFIGURATION.item_y_margin + new_idx * SHOP_UI_LAYOUT.item_spacing;
+                    int visible_area_top = -env->town_interface.shop_scroll_offset;
+                    int visible_area_bottom = visible_area_top + SHOP_UI_LAYOUT.scroll_container_height;
+                    
+                    if (item_y_position < visible_area_top) {
+                        env->town_interface.shop_scroll_offset = -(item_y_position - SHOP_CONFIGURATION.item_y_margin);
+                    }
+                    else if (item_y_position + SHOP_UI_LAYOUT.item_height > visible_area_bottom) {
+                        env->town_interface.shop_scroll_offset = -(item_y_position + SHOP_UI_LAYOUT.item_height - SHOP_UI_LAYOUT.scroll_container_height - SHOP_CONFIGURATION.item_y_margin);
+                    }
                 }
             } else {
                 env->town_interface.selected_item_index++;
@@ -2616,6 +2781,12 @@ void c_step(Rift* env) {
             env->actions[0] = ACTION_USE_MANA_POTION;
         } else if (IsKeyDown(KEY_F)) {
             env->actions[0] = ACTION_INTERACT;
+        } else if (IsKeyDown(KEY_ONE)) {
+            env->actions[0] = ACTION_SWITCH_TO_SHOP;
+        } else if (IsKeyDown(KEY_TWO)) {
+            env->actions[0] = ACTION_SWITCH_TO_CHARACTER;
+        } else if (IsKeyDown(KEY_R)) {
+            env->actions[0] = ACTION_REROLL_SHOP;
         } else {
             env->actions[0] = ACTION_NOOP;
         }
@@ -2625,6 +2796,28 @@ void c_step(Rift* env) {
     
     env->player.movement_x = env->player.x - env->player.prev_x;
     env->player.movement_y = env->player.y - env->player.prev_y;
+    
+    // Anti-stuck mechanism: penalize if agent hasn't made net progress in rift phase
+    if (env->current_phase == PHASE_RIFT) {
+        env->player.stuck_timer++;
+        
+        // Check progress every 3 seconds (180 frames) using Euclidean distance
+        if (env->player.stuck_timer >= 180) {
+            float dx = env->player.x - env->player.last_position_x;
+            float dy = env->player.y - env->player.last_position_y;
+            float net_distance = sqrtf(dx * dx + dy * dy); // Euclidean distance
+            
+            if (net_distance < 2.0f) { // Must move at least 2 units in 3 seconds
+                env->step_reward -= 0.02f; // Penalty for lack of exploration progress
+                env->episode_return -= 0.02f;
+            }
+            
+            // Reset timer and update reference position
+            env->player.stuck_timer = 0;
+            env->player.last_position_x = env->player.x;
+            env->player.last_position_y = env->player.y;
+        }
+    }
     
     env->player.prev_x = env->player.x;
     env->player.prev_y = env->player.y;
@@ -2636,28 +2829,12 @@ void c_step(Rift* env) {
         update_blizzard_areas(env);
         
         if (env->boss.alive) {
-            float dist = distance(env->player.x, env->player.y, env->boss.x, env->boss.y);
-            if (dist <= 2.0f && env->boss.attack_cooldown == 0) {
-                env->boss.attack_cooldown = GetScaledAttackCooldown(15, env->current_rift_level);
-                
-                if ((rand() % 100) < env->player.dodge_chance) {
-                } else {
-                    env->episode_damage_taken += env->boss.damage;
-                    
-                    if (env->boss.damage >= env->player.health) {
-                        env->player.health = 0;
-                        env->player.alive = 0;
-                        env->step_reward += env->config.death_penalty;
-                        env->episode_return += env->config.death_penalty;
-                        env->episode_death_penalties += env->config.death_penalty;
-                        env->episode_deaths++;
-                    } else {
-                        env->player.health -= env->boss.damage;
-                    }
-                }
-            }
+            execute_boss_attack(env);
             if (env->boss.attack_cooldown > 0) {
                 env->boss.attack_cooldown--;
+            }
+            if (env->boss.special_attack_cooldown > 0) {
+                env->boss.special_attack_cooldown--;
             }
         }
         

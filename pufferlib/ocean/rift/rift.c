@@ -11,7 +11,6 @@
 #endif
 
 void generate_dummy_action(Rift* env) {
-    // Toggle human mode with shift key press
     if (IsKeyPressed(KEY_LEFT_SHIFT) || IsKeyPressed(KEY_RIGHT_SHIFT)) {
         env->human_mode = !env->human_mode;
         printf("SHIFT TOGGLE: Human mode %s\n", env->human_mode ? "ON" : "OFF");

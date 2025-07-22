@@ -40,7 +40,7 @@ class Rift(pufferlib.PufferEnv):
             low=0, high=1, shape=(max_obs_size,), dtype=np.float32
         )
         
-        # Action space: 14 discrete actions (works for both rift and town phases)
+        # Action space: 17 discrete actions (works for both rift and town phases)
         # RIFT PHASE:
         #   0-3: Cardinal movement (up, down, left, right)
         #   4-7: Diagonal movement (up-left, up-right, down-left, down-right)
@@ -51,8 +51,11 @@ class Rift(pufferlib.PufferEnv):
         #   11: Interact (buy items, equip items, enter rift portal)
         #   12: Noop
         #   13: Exit town and go to next rift (skip remaining town time)
+        #   14: Switch to shop tab (1 key)
+        #   15: Switch to character tab (2 key)
+        #   16: Reroll shop items (R key, costs gold)
         #   Other actions ignored in town
-        self.single_action_space = gymnasium.spaces.Discrete(14)
+        self.single_action_space = gymnasium.spaces.Discrete(17)
         
         self.num_agents = num_envs
         self.render_mode = render_mode

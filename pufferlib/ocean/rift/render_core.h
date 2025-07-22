@@ -70,10 +70,10 @@ static const TownLayout TOWN_UI_LAYOUT = {
 static const EquipmentLayout EQUIPMENT_UI_LAYOUT = {
     .slot_size = 55,
     .column_spacing = 65, .row_spacing = 75,
-    .equipment_start_x = 70,  // CONTENT_AREA_X
-    .left_col_x = 85,         // CONTENT_AREA_X + 15 margin
-    .middle_col_x = 205,      // 85 + 55 + 65 = 205  
-    .right_col_x = 325,       // 205 + 55 + 65 = 325 (total width: 325+55-85 = 295 < 380)
+    .equipment_start_x = 70,
+    .left_col_x = 85,
+    .middle_col_x = 205,
+    .right_col_x = 325,
     .base_y = 200
 };
 
@@ -101,7 +101,7 @@ static const InventoryLayout INVENTORY_UI_LAYOUT = {
 
 static const ShopLayout SHOP_UI_LAYOUT = {
     .item_height = 80,
-    .item_spacing = 90,       // item_height + margin
+    .item_spacing = 90,
     .scroll_container_height = 400
 };
 
