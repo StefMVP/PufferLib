@@ -23,24 +23,8 @@ void generate_dummy_action(Rift* env) {
         bool d = IsKeyDown(KEY_D);
         bool space = IsKeyDown(KEY_SPACE);
         
-        if (space && (w || s || a || d)) {
-            if (w && a) {
-                env->actions[0] = ACTION_BLIZZARD_UP_LEFT;
-            } else if (w && d) {
-                env->actions[0] = ACTION_BLIZZARD_UP_RIGHT;
-            } else if (s && a) {
-                env->actions[0] = ACTION_BLIZZARD_DOWN_LEFT;
-            } else if (s && d) {
-                env->actions[0] = ACTION_BLIZZARD_DOWN_RIGHT;
-            } else if (w) {
-                env->actions[0] = ACTION_BLIZZARD_UP;
-            } else if (s) {
-                env->actions[0] = ACTION_BLIZZARD_DOWN;
-            } else if (a) {
-                env->actions[0] = ACTION_BLIZZARD_LEFT;
-            } else if (d) {
-                env->actions[0] = ACTION_BLIZZARD_RIGHT;
-            }
+        if (space) {
+            env->actions[0] = ACTION_BLIZZARD;
         }
         else if (w && a) {
             env->actions[0] = ACTION_MOVE_UP_LEFT;

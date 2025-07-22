@@ -500,4 +500,5 @@ void render_shop_tab(Rift* env) {
     }
 }
 
+
 #endif

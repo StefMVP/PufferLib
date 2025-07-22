@@ -1028,7 +1028,7 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
     
     char gold_text[32];
     sprintf(gold_text, "%d Gold", env->player.gold);
-    Color gold_sparkle = {255, 215, 0, (uint32_t)(200 + 55 * sinf(time * 6.0f))};
+    Color gold_sparkle = {255, 215, 0, 255};
     DrawText(gold_text, center_panel_x + 20, center_panel_y + 8, 18, gold_sparkle);
     
     int avg_ilvl = 0;
