@@ -27,10 +27,12 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "total_experience", log->total_experience);
     assign_to_dict(dict, "shop_purchases", log->shop_purchases);
     assign_to_dict(dict, "town_time_efficiency", log->town_time_efficiency);
+    assign_to_dict(dict, "no_purchase_penalties", log->no_purchase_penalties);
     assign_to_dict(dict, "current_gold", log->current_gold);
     assign_to_dict(dict, "total_strength", log->total_strength);
     assign_to_dict(dict, "total_dexterity", log->total_dexterity);
     assign_to_dict(dict, "total_intelligence", log->total_intelligence);
     assign_to_dict(dict, "total_vitality", log->total_vitality);
+    assign_to_dict(dict, "average_item_level", log->average_item_level);
     return 0;
 }

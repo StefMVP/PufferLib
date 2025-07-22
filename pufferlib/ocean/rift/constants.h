@@ -181,14 +181,14 @@
 
 // Main town container (between top and bottom UI)
 #define TOWN_CONTAINER_X 50
-#define TOWN_CONTAINER_Y TOP_UI_HEIGHT + 20  // 80
-#define TOWN_CONTAINER_WIDTH 920
-#define TOWN_CONTAINER_HEIGHT 520
+#define TOWN_CONTAINER_Y TOP_UI_HEIGHT + 20
+#define TOWN_CONTAINER_WIDTH SCREEN_WIDTH - 100
+#define TOWN_CONTAINER_HEIGHT SCREEN_HEIGHT - TOP_UI_HEIGHT - 40
 
 // Content areas within town container
 #define CONTENT_MARGIN 20
 #define CONTENT_GAP 20
-#define CONTENT_AREA_WIDTH 380
+#define CONTENT_AREA_WIDTH 420
 #define STATS_PANEL_WIDTH (TOWN_CONTAINER_WIDTH - (2 * CONTENT_MARGIN) - CONTENT_AREA_WIDTH - CONTENT_GAP)  // 480
 
 #define CONTENT_AREA_X (TOWN_CONTAINER_X + CONTENT_MARGIN)  // 70
@@ -332,6 +332,34 @@
 #define UI_BG_COLOR_RGB 20
 #define UI_HEIGHT 100
 #define UI_LINE_COLOR_RGB 60
+
+// Item quality colors
+#define COLOR_COMMON_GRAY 128
+#define COLOR_WHITE 255
+#define COLOR_WHITE_TRANSLUCENT 128
+#define COLOR_WHITE_ALPHA 64
+#define COLOR_RARE_BLUE_R 100
+#define COLOR_RARE_BLUE_G 149
+#define COLOR_RARE_BLUE_B 237
+#define COLOR_EPIC_PURPLE_R 163
+#define COLOR_EPIC_PURPLE_G 53
+#define COLOR_EPIC_PURPLE_B 238
+#define COLOR_LEGENDARY_ORANGE_R 255
+#define COLOR_LEGENDARY_ORANGE_G 128
+#define COLOR_LEGENDARY_ORANGE_B 0
+#define COLOR_DEFAULT_DARK 64
+#define COLOR_LIGHT_SILVER 192
+#define COLOR_LIGHT_SILVER_STRONG 224
+#define COLOR_SILVER 169
+#define COLOR_BROWN_HANDLE_LIGHT_R 139
+#define COLOR_BROWN_HANDLE_LIGHT_G 115
+#define COLOR_BROWN_HANDLE_LIGHT_B 85
+#define COLOR_BROWN_HANDLE_DARK_R 101
+#define COLOR_BROWN_HANDLE_DARK_G 67
+#define COLOR_BROWN_HANDLE_DARK_B 33
+#define COLOR_BROWN_LEATHER_R 139
+#define COLOR_BROWN_LEATHER_G 69
+#define COLOR_BROWN_LEATHER_B 19
 #define UI_STATS_OFFSET 45
 #define UI_STATS_LINE_HEIGHT 18
 #define POTION_SIZE 15
@@ -356,13 +384,13 @@
 // ============================================================================
 
 // Easy-to-tune scaling factors for game balance
-#define RIFT_MONSTER_HEALTH_BASE_MULTIPLIER 1.50f    // Health scales by 50% per rift level
-#define RIFT_MONSTER_DAMAGE_BASE_MULTIPLIER 1.35f    // Damage scales by 35% per rift level
-#define RIFT_MONSTER_SPEED_BASE_MULTIPLIER 1.08f     // Speed scales by 8% per rift level
-#define RIFT_MONSTER_ATTACK_SPEED_MULTIPLIER 0.92f   // Attack cooldown reduces by 8% per rift level (faster attacks)
+#define RIFT_MONSTER_HEALTH_BASE_MULTIPLIER 1.25f    // Health scales by 25% per rift level 
+#define RIFT_MONSTER_DAMAGE_BASE_MULTIPLIER 1.18f    // Damage scales by 18% per rift level
+#define RIFT_MONSTER_SPEED_BASE_MULTIPLIER 1.05f     // Speed scales by 5% per rift level (reduced from 8%)
+#define RIFT_MONSTER_ATTACK_SPEED_MULTIPLIER 0.95f   // Attack cooldown reduces by 5% per rift level (reduced from 8%)
 
-#define RIFT_GOLD_REWARD_BASE 50                     // Base gold for completing Rift 1  
-#define RIFT_GOLD_SCALING_MULTIPLIER 1.05f           // Gold scales by 5% per rift level (much more reasonable)
+#define RIFT_GOLD_REWARD_BASE 120                    // Base gold for completing Rift 1 (increased from 90)
+#define RIFT_GOLD_SCALING_MULTIPLIER 1.12f           // Gold scales by 12% per rift level (reduced from 15%)
 
 // Shop item quality chances by rift tier (percentages)
 #define RIFT_TIER_1_MAX 3        // Rifts 1-3: Early game
@@ -395,11 +423,11 @@
 #define ENDGAME_LEGENDARY_CHANCE 5
 
 // Item level scaling
-#define RIFT_ILVL_BASE_MULTIPLIER 1.0f              // ilvl closely tracks rift level
-#define RIFT_ILVL_RANDOM_RANGE 2                    // ±2 ilvl variation
+#define RIFT_ILVL_BASE_MULTIPLIER 0.75f             // ilvl scales at 3/4 rift level for better progression (increased from 0.5f)
+#define RIFT_ILVL_RANDOM_RANGE 1                    // ±1 ilvl variation
 
 // Price scaling (items get more expensive in higher rifts)
-#define RIFT_PRICE_BASE_MULTIPLIER 1.15f            // Prices scale by 15% per rift level
+#define RIFT_PRICE_BASE_MULTIPLIER 1.08f            // Prices scale by 8% per rift level (reduced from 10%)
 #define QUALITY_PRICE_MULTIPLIERS {1.0f, 2.5f, 6.0f, 15.0f}  // Common, Rare, Epic, Legendary
 
 // ============================================================================
@@ -451,7 +479,7 @@
 #define QUALITY_LEGENDARY 3
 
 // Shop constants
-#define SHOP_ITEMS_COUNT 4
+#define SHOP_ITEMS_COUNT 10
 #define INVENTORY_SLOTS 12
 
 // Town layout positions
@@ -477,6 +505,7 @@
 #define TOWN_STAT_DECREASE_PENALTY -1.0f    // -1.0 per stat point lost
 #define TOWN_ILVL_DECREASE_PENALTY -2.0f    // -2.0 per ilvl lost
 #define TOWN_INEFFICIENT_ACTION_PENALTY -1.0f
+#define TOWN_NO_PURCHASES_PENALTY -5.0f     // Penalty for exiting town without buying anything
 
 // Health management penalties
 #define LOW_HEALTH_THRESHOLD 0.25f           // 25% health threshold

@@ -59,6 +59,7 @@ typedef struct Player {
     uint32_t health, max_health;
     uint32_t mana, max_mana;
     uint32_t damage;
+    uint32_t dodge_chance;
     uint32_t alive;
     uint32_t blizzard_cooldown;
     uint32_t health_potion_cooldown;
@@ -143,6 +144,7 @@ typedef struct HeroStats {
     uint32_t total_dexterity;
     uint32_t total_intelligence;
     uint32_t total_vitality;
+    uint32_t average_item_level;
 } HeroStats;
 
 typedef struct Equipment {
@@ -233,6 +235,7 @@ typedef struct TownInterface {
     uint32_t equipment_slot;        // Selected equipment slot (0=weapon, 1=armor, 2=accessory)
     uint32_t input_cooldown;        // Cooldown for WASD navigation to prevent rapid input
     int16_t shop_scroll_offset;    // Scroll offset for shop (negative values scroll up)
+    uint32_t current_visit_purchases;  // Number of purchases made during this town visit
 } TownInterface;
 
 typedef struct Log {
@@ -254,11 +257,13 @@ typedef struct Log {
     float total_experience;
     float shop_purchases;
     float town_time_efficiency;
+    float no_purchase_penalties;
     float current_gold;
     float total_strength;
     float total_dexterity;
     float total_intelligence;
     float total_vitality;
+    float average_item_level;
     float n;
 } Log;
 
@@ -343,6 +348,7 @@ typedef struct Rift {
     float episode_completion_rewards;
     float episode_monster_kill_rewards;
     float episode_death_penalties;
+    float episode_no_purchase_penalties;
     
     uint32_t episode_shop_purchases;
     uint16_t episode_town_time_used;
@@ -1138,13 +1144,16 @@ void spawn_fast_projectile(Rift* env, float start_x, float start_y, float target
 void execute_monster_attack(Rift* env, Monster* monster) {
     switch (monster->attack_type) {
         case ATTACK_TYPE_MELEE:
-            // Direct melee damage - no projectile needed
-            monster->attack_animation_timer = 20; // 20 frames of animation
-            if (monster->damage >= env->player.health) {
-                env->player.health = 0;
-                env->player.alive = 0;
+            monster->attack_animation_timer = 20; 
+            
+            if ((rand() % 100) < env->player.dodge_chance) {
             } else {
-                env->player.health -= monster->damage;
+                if (monster->damage >= env->player.health) {
+                    env->player.health = 0;
+                    env->player.alive = 0;
+                } else {
+                    env->player.health -= monster->damage;
+                }
             }
             break;
             
@@ -1164,10 +1173,8 @@ void execute_monster_attack(Rift* env, Monster* monster) {
             break;
             
         case ATTACK_TYPE_CONE_SLAM:
-            // Ground slam with cone damage
-            monster->attack_animation_timer = 30; // 30 frames of slam animation
+            monster->attack_animation_timer = 30; 
             
-            // Calculate cone area in front of monster
             float dx = env->player.x - monster->x;
             float dy = env->player.y - monster->y;
             float dist_to_player = sqrtf(dx * dx + dy * dy);
@@ -1177,13 +1184,15 @@ void execute_monster_attack(Rift* env, Monster* monster) {
                 float monster_facing = atan2f(env->player.y - monster->y, env->player.x - monster->x);
                 float angle_diff = fabsf(angle_to_player - monster_facing);
                 
-                // 60 degree cone (π/3 radians)
                 if (angle_diff <= PI/3 || angle_diff >= (2*PI - PI/3)) {
-                    if (monster->damage >= env->player.health) {
-                        env->player.health = 0;
-                        env->player.alive = 0;
+                    if ((rand() % 100) < env->player.dodge_chance) {
                     } else {
-                        env->player.health -= monster->damage;
+                        if (monster->damage >= env->player.health) {
+                            env->player.health = 0;
+                            env->player.alive = 0;
+                        } else {
+                            env->player.health -= monster->damage;
+                        }
                     }
                 }
             }
@@ -1196,7 +1205,6 @@ void update_projectiles(Rift* env) {
         if (env->projectiles[i].active) {
             Projectile* proj = &env->projectiles[i];
             
-            // Update homing projectiles to track player
             if (proj->homing && env->player.alive) {
                 float dx = env->player.x - proj->x;
                 float dy = env->player.y - proj->y;
@@ -1226,17 +1234,20 @@ void update_projectiles(Rift* env) {
             
             float dist_to_player = distance(env->player.x, env->player.y, proj->x, proj->y);
             if (dist_to_player <= 0.8f && env->player.alive) {
-                env->episode_damage_taken += proj->damage;
-                
-                if (proj->damage >= env->player.health) {
-                    env->player.health = 0;
-                    env->player.alive = 0;
-                    env->step_reward += env->config.death_penalty;
-                    env->episode_return += env->config.death_penalty;
-                    env->episode_death_penalties += env->config.death_penalty;
-                    env->episode_deaths++;
+                if ((rand() % 100) < env->player.dodge_chance) {
                 } else {
-                    env->player.health -= proj->damage;
+                    env->episode_damage_taken += proj->damage;
+                    
+                    if (proj->damage >= env->player.health) {
+                        env->player.health = 0;
+                        env->player.alive = 0;
+                        env->step_reward += env->config.death_penalty;
+                        env->episode_return += env->config.death_penalty;
+                        env->episode_death_penalties += env->config.death_penalty;
+                        env->episode_deaths++;
+                    } else {
+                        env->player.health -= proj->damage;
+                    }
                 }
                 
                 proj->active = 0;
@@ -1263,6 +1274,7 @@ void handle_vendor_interaction(Rift* env) {
                         memset(env->player.inventory[j].stat_bonuses, 0, sizeof(env->player.inventory[j].stat_bonuses));
                         env->player.inventory_count++;
                         env->episode_vendor_transactions++;
+                        env->town_interface.current_visit_purchases++;
                         break;
                     }
                 }
@@ -1533,13 +1545,14 @@ static void add_log(Rift* env) {
     env->log.total_experience += env->hero_stats.experience;
     env->log.shop_purchases += env->episode_shop_purchases;
     env->log.town_time_efficiency += (float)env->episode_town_time_used / TOWN_MODE_TIME_LIMIT;
+    env->log.no_purchase_penalties += env->episode_no_purchase_penalties;
     
-    // Current state snapshots for tracking training progress
     env->log.current_gold = env->player.gold;
     env->log.total_strength = env->hero_stats.total_strength;
     env->log.total_dexterity = env->hero_stats.total_dexterity;
     env->log.total_intelligence = env->hero_stats.total_intelligence;
     env->log.total_vitality = env->hero_stats.total_vitality;
+    env->log.average_item_level = env->hero_stats.average_item_level;
     
     env->log.n += 1;
 }
@@ -1548,7 +1561,6 @@ static void add_log(Rift* env) {
 // RIFT PROGRESSION SCALING FUNCTIONS
 // ============================================================================
 
-// Monster stat scaling based on rift level
 float GetScaledMonsterHealth(float base_health, uint32_t rift_level) {
     return base_health * powf(RIFT_MONSTER_HEALTH_BASE_MULTIPLIER, rift_level - 1);
 }
@@ -1566,33 +1578,27 @@ uint32_t GetScaledAttackCooldown(uint32_t base_cooldown, uint32_t rift_level) {
     return (uint32_t)(scaled_cooldown < 5 ? 5 : scaled_cooldown); // Minimum 5 frames between attacks
 }
 
-// Gold reward scaling
 int GetRiftCompletionGold(uint32_t rift_level) {
     return (int)(RIFT_GOLD_REWARD_BASE * powf(RIFT_GOLD_SCALING_MULTIPLIER, rift_level - 1));
 }
 
-// Item quality chances based on rift tier
 void GetQualityChances(uint32_t rift_level, int* common, int* rare, int* epic, int* legendary) {
     if (rift_level <= RIFT_TIER_1_MAX) {
-        // Tier 1: Learning phase
         *common = TIER_1_COMMON_CHANCE;
         *rare = TIER_1_RARE_CHANCE;
         *epic = TIER_1_EPIC_CHANCE;
         *legendary = TIER_1_LEGENDARY_CHANCE;
     } else if (rift_level <= RIFT_TIER_2_MAX) {
-        // Tier 2: Progression phase
         *common = TIER_2_COMMON_CHANCE;
         *rare = TIER_2_RARE_CHANCE;
         *epic = TIER_2_EPIC_CHANCE;
         *legendary = TIER_2_LEGENDARY_CHANCE;
     } else if (rift_level <= RIFT_TIER_3_MAX) {
-        // Tier 3: Advanced phase
         *common = TIER_3_COMMON_CHANCE;
         *rare = TIER_3_RARE_CHANCE;
         *epic = TIER_3_EPIC_CHANCE;
         *legendary = TIER_3_LEGENDARY_CHANCE;
     } else {
-        // End game phase
         *common = ENDGAME_COMMON_CHANCE;
         *rare = ENDGAME_RARE_CHANCE;
         *epic = ENDGAME_EPIC_CHANCE;
@@ -1600,15 +1606,12 @@ void GetQualityChances(uint32_t rift_level, int* common, int* rare, int* epic, i
     }
 }
 
-// Item level scaling with variation
 int GetScaledItemLevel(uint32_t rift_level) {
     int base_ilvl = (int)(rift_level * RIFT_ILVL_BASE_MULTIPLIER);
-    // Add random variation: ±RIFT_ILVL_RANDOM_RANGE
     int variation = (rand() % (2 * RIFT_ILVL_RANDOM_RANGE + 1)) - RIFT_ILVL_RANDOM_RANGE;
     return base_ilvl + variation;
 }
 
-// Item price scaling based on rift level and quality
 int GetScaledItemPrice(int base_price, uint32_t rift_level, uint32_t quality) {
     float quality_multipliers[] = QUALITY_PRICE_MULTIPLIERS;
     float rift_multiplier = powf(RIFT_PRICE_BASE_MULTIPLIER, rift_level - 1);
@@ -1747,6 +1750,7 @@ void init_hero_stats(Rift* env) {
     env->town_interface.equipment_slot = 0;
     env->town_interface.input_cooldown = 0;
     env->town_interface.shop_scroll_offset = 0;
+    env->town_interface.current_visit_purchases = 0;
 }
 
 void give_stat_based_rewards(Rift* env, uint32_t old_str, uint32_t old_dex, uint32_t old_int, uint32_t old_vit, uint32_t old_total_ilvl) {
@@ -1838,9 +1842,36 @@ void calculate_total_stats(Rift* env) {
                                     env->equipment.pants_stat_bonuses[3] + 
                                     env->equipment.bracers_stat_bonuses[3];
     
+    uint32_t total_ilvl = env->equipment.weapon_level + env->equipment.offhand_level + 
+                         env->equipment.ring_left_level + env->equipment.ring_right_level +
+                         env->equipment.amulet_level + env->equipment.boots_level +
+                         env->equipment.gloves_level + env->equipment.helmet_level +
+                         env->equipment.shoulders_level + env->equipment.armor_level +
+                         env->equipment.belt_level + env->equipment.pants_level +
+                         env->equipment.bracers_level;
+    
+    uint32_t equipped_items = 0;
+    if (env->equipment.weapon_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.offhand_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.ring_left_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.ring_right_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.amulet_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.boots_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.gloves_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.helmet_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.shoulders_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.armor_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.belt_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.pants_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.bracers_type != EQUIPMENT_NONE) equipped_items++;
+    
+    env->hero_stats.average_item_level = equipped_items > 0 ? (total_ilvl + equipped_items - 1) / equipped_items : 0; // Round up
+    
     env->player.max_health = PLAYER_MAX_HEALTH + (env->hero_stats.total_vitality * 5);
     env->player.max_mana = PLAYER_MAX_MANA + (env->hero_stats.total_intelligence * 2);
-    env->player.damage = PLAYER_BASE_DAMAGE + (env->hero_stats.total_strength * 2);
+    env->player.damage = PLAYER_BASE_DAMAGE + (env->hero_stats.total_strength * 2) + (env->hero_stats.total_intelligence * 1); // Int adds damage too
+    env->player.dodge_chance = env->hero_stats.total_dexterity; // 1% dodge per dex point, max 50%
+    if (env->player.dodge_chance > 50) env->player.dodge_chance = 50;
 }
 
 void add_experience(Rift* env, uint16_t exp) {
@@ -1883,36 +1914,37 @@ void generate_shop_inventory(Rift* env) {
             item->item_quality = QUALITY_COMMON;
         }
         
-        // RIFT-BASED Item Level Generation
         item->item_level = GetScaledItemLevel(rift_level);
         if (item->item_level < 1) item->item_level = 1;
-        if (item->item_level > 50) item->item_level = 50; // Higher cap for rift progression
+        if (item->item_level > 50) item->item_level = 50; 
         
-        // EPIC Stat Generation - Quality affects stat potency
-        uint32_t stat_multiplier = 1 + item->item_quality; // Common: 1x, Rare: 2x, Epic: 3x, Legendary: 4x
-        uint32_t base_stat_budget = item->item_level * stat_multiplier; // Remove division by 2 for better stats
+        uint32_t stat_multiplier;
+        switch(item->item_quality) {
+            case QUALITY_COMMON: stat_multiplier = 1; break;
+            case QUALITY_RARE: stat_multiplier = 2; break;
+            case QUALITY_EPIC: stat_multiplier = 3; break;
+            case QUALITY_LEGENDARY: stat_multiplier = 5; break;
+            default: stat_multiplier = 1; break;
+        }
+        uint32_t base_stat_budget = item->item_level * stat_multiplier;
         
-        // Distribute stats with some randomness
         for (uint32_t j = 0; j < 4; j++) {
             item->stat_bonuses[j] = 0;
         }
         
-        // Ensure minimum stat budget for all items
         if (base_stat_budget < 1) base_stat_budget = 1;
         
         uint32_t remaining_budget = base_stat_budget;
         
-        // Allocate stats more evenly
         while (remaining_budget > 0) {
             uint32_t stat_index = rand() % 4;
-            uint32_t allocation_amount = 1 + (rand() % 3); // 1-3 points per allocation
+            uint32_t allocation_amount = 1 + (rand() % 3);
             if (allocation_amount > remaining_budget) allocation_amount = remaining_budget;
             
             item->stat_bonuses[stat_index] += allocation_amount;
             remaining_budget -= allocation_amount;
         }
         
-        // RIFT-BASED Pricing with scaling
         uint16_t base_price = 50 + (item->item_level * 10);
         uint32_t total_stats = item->stat_bonuses[0] + item->stat_bonuses[1] + 
                              item->stat_bonuses[2] + item->stat_bonuses[3];
@@ -1963,7 +1995,6 @@ void buy_shop_item(Rift* env, uint32_t shop_slot) {
         return;
     }
     
-    // Store old stats for reward calculation
     uint32_t old_str = env->hero_stats.total_strength;
     uint32_t old_dex = env->hero_stats.total_dexterity; 
     uint32_t old_int = env->hero_stats.total_intelligence;
@@ -1976,11 +2007,9 @@ void buy_shop_item(Rift* env, uint32_t shop_slot) {
                             env->equipment.shoulders_level + env->equipment.armor_level +
                             env->equipment.belt_level + env->equipment.pants_level + env->equipment.bracers_level;
     
-    // Auto-equip item directly and delete old equipment
     ShopItem* shop_item = &env->shop_items[shop_slot];
     
     
-    // Equip the item directly based on type (old equipment is overwritten/deleted)
     switch (shop_item->item_type) {
         case EQUIPMENT_WEAPON:
             env->equipment.weapon_type = shop_item->item_type;
@@ -2093,14 +2122,13 @@ void buy_shop_item(Rift* env, uint32_t shop_slot) {
     env->player.gold -= shop_item->price;
     shop_item->available = 0;
     
-    // Recalculate total stats after equipping new item
     calculate_total_stats(env);
     
-    // Give stat-based rewards for the purchase outcome
     give_stat_based_rewards(env, old_str, old_dex, old_int, old_vit, old_total_ilvl);
     
     env->episode_vendor_transactions++;
     env->episode_shop_purchases++;
+    env->town_interface.current_visit_purchases++;
     
 }
 
@@ -2229,6 +2257,20 @@ void handle_inventory_interaction(Rift* env) {
 
 void transition_to_town(Rift* env) {
     env->current_phase = PHASE_TOWN;
+    
+    env->current_rift_level++;
+    
+    int rift_gold = GetRiftCompletionGold(env->current_rift_level);
+    env->player.gold += rift_gold;
+    env->episode_gold_earned += rift_gold;
+    
+    int rift_exp = EXP_PER_RIFT_COMPLETION + (env->current_rift_level * 25);
+    add_experience(env, rift_exp);
+    
+    float progression_reward = env->current_rift_level * 2.0f;
+    env->step_reward += progression_reward;
+    env->episode_return += progression_reward;
+    
     generate_shop_inventory(env);
     
     env->town_interface.frames_remaining = TOWN_MODE_TIME_LIMIT;
@@ -2239,47 +2281,51 @@ void transition_to_town(Rift* env) {
     env->town_interface.equipment_slot = 0;
     env->town_interface.input_cooldown = 0;
     env->town_interface.shop_scroll_offset = 0;
-    
-    add_experience(env, EXP_PER_RIFT_COMPLETION);
+    env->town_interface.current_visit_purchases = 0;
 }
 
 void transition_to_rift(Rift* env) {
     #if TOWN_TESTING_MODE
-        // AUTO-COMPLETE RIFT INSTANTLY FOR TOWN TRAINING WITH PROGRESSION
-        env->current_phase = PHASE_TOWN; // Stay in town
+        env->current_phase = PHASE_TOWN;
         
-        // RIFT PROGRESSION: Increment rift level and give scaled rewards
         env->current_rift_level++;
         
-        // Give scaled gold rewards based on new rift level
         int rift_gold = GetRiftCompletionGold(env->current_rift_level);
         env->player.gold += rift_gold;
         env->episode_gold_earned += rift_gold;
         
-        // Give scaled experience
-        int rift_exp = TOWN_TEST_AUTO_EXP + (env->current_rift_level * 25); // More exp for higher rifts
+        int rift_exp = TOWN_TEST_AUTO_EXP + (env->current_rift_level * 25); 
         add_experience(env, rift_exp);
         
-        // Mark rift as completed for stats
         env->episode_rift_completions++;
         env->step_reward += env->config.completion_reward;
         env->episode_return += env->config.completion_reward;
         env->episode_completion_rewards += env->config.completion_reward;
         
-        // Add rift progression reward (learning incentive)
-        float progression_reward = env->current_rift_level * 2.0f; // +2 reward per rift level
+        float progression_reward = env->current_rift_level * 2.0f; 
         env->step_reward += progression_reward;
         env->episode_return += progression_reward;
         
-        // Generate new scaled shop inventory based on new rift level
         generate_shop_inventory(env);
         
-        // Reset town timer
+        if (env->town_interface.current_visit_purchases == 0) {
+            env->step_reward += TOWN_NO_PURCHASES_PENALTY;
+            env->episode_return += TOWN_NO_PURCHASES_PENALTY;
+            env->episode_no_purchase_penalties += -TOWN_NO_PURCHASES_PENALTY;
+        }
+        
         env->town_interface.frames_remaining = TOWN_MODE_TIME_LIMIT;
         env->town_interface.warning_phase = 0;
+        env->town_interface.current_visit_purchases = 0;
         
-        return; // Don't actually enter rift
+        return;
     #endif
+    
+    if (env->town_interface.current_visit_purchases == 0) {
+        env->step_reward += TOWN_NO_PURCHASES_PENALTY;
+        env->episode_return += TOWN_NO_PURCHASES_PENALTY;
+        env->episode_no_purchase_penalties += -TOWN_NO_PURCHASES_PENALTY;
+    }
     
     env->current_phase = PHASE_RIFT;
     generate_rift_map(env);
@@ -2302,7 +2348,6 @@ void transition_to_rift(Rift* env) {
 void update_town_timer(Rift* env) {
     if (env->current_phase != PHASE_TOWN) return;
     
-    // Update input cooldown
     if (env->town_interface.input_cooldown > 0) {
         env->town_interface.input_cooldown--;
     }
@@ -2322,16 +2367,15 @@ void update_town_timer(Rift* env) {
 }
 
 void handle_town_navigation(Rift* env, int action) {
-    // EPIC Input Cooldown System - Prevent rapid navigation spam
     if (env->town_interface.input_cooldown > 0) {
-        return; // Still in cooldown, ignore input
+        return; 
     }
     
     switch (action) {
         case ACTION_MOVE_LEFT:
             if (env->town_interface.current_tab == TOWN_TAB_SHOP) {
                 env->town_interface.current_tab = TOWN_TAB_CHARACTER;
-                env->town_interface.character_mode = CHARACTER_MODE_EQUIPMENT; // Always show equipment
+                env->town_interface.character_mode = CHARACTER_MODE_EQUIPMENT; 
                 env->town_interface.selected_item_index = 0;
                 env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
             } else {
@@ -2340,15 +2384,13 @@ void handle_town_navigation(Rift* env, int action) {
         case ACTION_MOVE_RIGHT:
             if (env->town_interface.current_tab == TOWN_TAB_CHARACTER) {
                 env->town_interface.current_tab = TOWN_TAB_SHOP;
-                env->town_interface.shop_scroll_offset = 0; // Reset scroll when entering shop
+                env->town_interface.shop_scroll_offset = 0;
                 
-                // Find first available shop item
                 int first_available = 0;
                 while (first_available < SHOP_ITEMS_COUNT && !env->shop_items[first_available].available) {
                     first_available++;
                 }
                 
-                // Set to first available item, or 0 if none available
                 env->town_interface.selected_item_index = (first_available < SHOP_ITEMS_COUNT) ? first_available : 0;
                 env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
                 
@@ -2357,23 +2399,19 @@ void handle_town_navigation(Rift* env, int action) {
             break;
         case ACTION_MOVE_UP:
             if (env->town_interface.current_tab == TOWN_TAB_CHARACTER && env->town_interface.character_mode == CHARACTER_MODE_EQUIPMENT) {
-                // Sequential navigation up through 13 equipment slots
                 if (env->town_interface.selected_item_index > 0) {
                     env->town_interface.selected_item_index--;
                 } else {
-                    env->town_interface.selected_item_index = 12; // Wrap to last slot
+                    env->town_interface.selected_item_index = 12; 
                 }
             } else if (env->town_interface.current_tab == TOWN_TAB_SHOP) {
-                // Shop navigation: only go to available items
                 int current_idx = env->town_interface.selected_item_index;
                 int new_idx = current_idx - 1;
                 
-                // Find previous available item
                 while (new_idx >= 0 && !env->shop_items[new_idx].available) {
                     new_idx--;
                 }
                 
-                // If no available item found above, wrap to last available item
                 if (new_idx < 0) {
                     new_idx = SHOP_ITEMS_COUNT - 1;
                     while (new_idx >= 0 && !env->shop_items[new_idx].available) {
@@ -2381,12 +2419,10 @@ void handle_town_navigation(Rift* env, int action) {
                     }
                 }
                 
-                // Only update if we found an available item
                 if (new_idx >= 0 && env->shop_items[new_idx].available) {
                     env->town_interface.selected_item_index = new_idx;
                 }
             } else {
-                // Standard up navigation for other modes
                 if (env->town_interface.selected_item_index > 0) {
                     env->town_interface.selected_item_index--;
                 }
@@ -2395,23 +2431,19 @@ void handle_town_navigation(Rift* env, int action) {
             break;
         case ACTION_MOVE_DOWN:
             if (env->town_interface.current_tab == TOWN_TAB_CHARACTER && env->town_interface.character_mode == CHARACTER_MODE_EQUIPMENT) {
-                // Sequential navigation down through 13 equipment slots
                 if (env->town_interface.selected_item_index < 12) {
                     env->town_interface.selected_item_index++;
                 } else {
-                    env->town_interface.selected_item_index = 0; // Wrap to first slot
+                    env->town_interface.selected_item_index = 0;
                 }
             } else if (env->town_interface.current_tab == TOWN_TAB_SHOP) {
-                // Shop navigation: only go to available items
                 int current_idx = env->town_interface.selected_item_index;
                 int new_idx = current_idx + 1;
                 
-                // Find next available item
                 while (new_idx < SHOP_ITEMS_COUNT && !env->shop_items[new_idx].available) {
                     new_idx++;
                 }
                 
-                // If no available item found below, wrap to first available item
                 if (new_idx >= SHOP_ITEMS_COUNT) {
                     new_idx = 0;
                     while (new_idx < SHOP_ITEMS_COUNT && !env->shop_items[new_idx].available) {
@@ -2419,12 +2451,10 @@ void handle_town_navigation(Rift* env, int action) {
                     }
                 }
                 
-                // Only update if we found an available item
                 if (new_idx < SHOP_ITEMS_COUNT && env->shop_items[new_idx].available) {
                     env->town_interface.selected_item_index = new_idx;
                 }
             } else {
-                // Standard down navigation for other modes
                 env->town_interface.selected_item_index++;
                 
                 if (env->town_interface.current_tab == TOWN_TAB_CHARACTER) {
@@ -2439,8 +2469,6 @@ void handle_town_navigation(Rift* env, int action) {
 void handle_town_interaction(Rift* env) {
     
     if (env->town_interface.current_tab == TOWN_TAB_CHARACTER) {
-        // Character equipment tab is display-only, F key does nothing
-        // This prevents accidentally switching to inventory mode
         return;
     } else if (env->town_interface.current_tab == TOWN_TAB_SHOP) {
         uint32_t shop_slot = env->town_interface.selected_item_index;
@@ -2453,13 +2481,10 @@ void handle_town_interaction(Rift* env) {
 
 
 void c_reset(Rift* env) {
-    // ALWAYS reset hero stats and equipment on episode reset (new game)
     init_hero_stats(env);
     
-    // Reset rift progression to level 1
     env->current_rift_level = 1;
     
-    // Start based on testing mode
     #if TOWN_TESTING_MODE
         env->current_phase = PHASE_TOWN;
         generate_town_map(env);
@@ -2470,10 +2495,10 @@ void c_reset(Rift* env) {
     #endif
     
     #if TOWN_TESTING_MODE
-        env->player.x = 15;  // Town starting position
+        env->player.x = 15; 
         env->player.y = 19;
     #else
-        env->player.x = MAP_WIDTH / 2;   // Center of rift map
+        env->player.x = MAP_WIDTH / 2; 
         env->player.y = MAP_HEIGHT / 2;
     #endif
     
@@ -2522,7 +2547,7 @@ void c_reset(Rift* env) {
     env->episode_return = 0.0f;
     env->step_reward = 0.0f;
     env->rift_completed = 0;
-    env->human_mode = 0;              // Start in AI mode
+    env->human_mode = 0;
     
     env->rewards[0] = 0.0f;
     env->terminals[0] = 0;
@@ -2539,6 +2564,7 @@ void c_reset(Rift* env) {
     env->episode_completion_rewards = 0.0f;
     env->episode_monster_kill_rewards = 0.0f;
     env->episode_death_penalties = 0.0f;
+    env->episode_no_purchase_penalties = 0.0f;
     
     env->episode_shop_purchases = 0;
     env->episode_town_time_used = 0;
@@ -2612,18 +2638,22 @@ void c_step(Rift* env) {
         if (env->boss.alive) {
             float dist = distance(env->player.x, env->player.y, env->boss.x, env->boss.y);
             if (dist <= 2.0f && env->boss.attack_cooldown == 0) {
-                env->episode_damage_taken += env->boss.damage;
                 env->boss.attack_cooldown = GetScaledAttackCooldown(15, env->current_rift_level);
                 
-                if (env->boss.damage >= env->player.health) {
-                    env->player.health = 0;
-                    env->player.alive = 0;
-                    env->step_reward += env->config.death_penalty;
-                    env->episode_return += env->config.death_penalty;
-                    env->episode_death_penalties += env->config.death_penalty;
-                    env->episode_deaths++;
+                if ((rand() % 100) < env->player.dodge_chance) {
                 } else {
-                    env->player.health -= env->boss.damage;
+                    env->episode_damage_taken += env->boss.damage;
+                    
+                    if (env->boss.damage >= env->player.health) {
+                        env->player.health = 0;
+                        env->player.alive = 0;
+                        env->step_reward += env->config.death_penalty;
+                        env->episode_return += env->config.death_penalty;
+                        env->episode_death_penalties += env->config.death_penalty;
+                        env->episode_deaths++;
+                    } else {
+                        env->player.health -= env->boss.damage;
+                    }
                 }
             }
             if (env->boss.attack_cooldown > 0) {
@@ -2638,8 +2668,7 @@ void c_step(Rift* env) {
             env->episode_return += env->config.completion_reward;
             env->episode_completion_rewards += env->config.completion_reward;
             
-            // Give bonus gold for boss kill instead of dropping items
-            uint16_t boss_gold = (GOLD_DROP_MIN + rand() % GOLD_DROP_RANGE) * 3; // Triple gold for boss
+            uint16_t boss_gold = (GOLD_DROP_MIN + rand() % GOLD_DROP_RANGE) * 3; 
             env->player.gold += boss_gold;
             env->episode_gold_earned += boss_gold;
             
