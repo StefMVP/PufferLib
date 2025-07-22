@@ -377,6 +377,13 @@ uint32_t is_at_rift_portal(Rift* env) {
 
 void transition_to_town(Rift* env) {
     env->current_phase = PHASE_TOWN;
+    
+    env->current_rift_level++;
+    
+    int rift_gold = GetRiftCompletionGold(env->current_rift_level);
+    env->player.gold += rift_gold;
+    env->episode_gold_earned += rift_gold;
+    
     generate_shop_inventory(env);
     
     env->town_interface.frames_remaining = TOWN_MODE_TIME_LIMIT;

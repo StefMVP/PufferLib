@@ -4,31 +4,76 @@
 #include "render_core.h"
 
 static void render_background(Rift* env, float cell_size) {
+    float map_width = MAP.width * cell_size;
+    float map_height = MAP.height * cell_size;
+    
+    for (int y = 0; y < map_height; y++) {
+        float t = (float)y / map_height;
+        Color dark_stone = {25, 22, 18, 255};
+        Color darker_stone = {15, 13, 10, 255};
+        Color current = {
+            (uint32_t)(dark_stone.r * (1-t) + darker_stone.r * t),
+            (uint32_t)(dark_stone.g * (1-t) + darker_stone.g * t),
+            (uint32_t)(dark_stone.b * (1-t) + darker_stone.b * t),
+            255
+        };
+        DrawRectangle(0, y, map_width, 1, current);
+    }
+    
     if (!env->client || !env->client->sprites.tileset.id) {
-        Color bg_color = RIFT_COLORS.background;
-        DrawRectangle(0, 0, MAP.width * cell_size, MAP.height * cell_size, bg_color);
         return;
     }
     
     SpriteSystem* sprites = &env->client->sprites;
+    float time_pulse = sinf(GetTime() * 0.3f) * 0.1f + 0.9f;
     
     for (uint32_t y = 0; y < MAP.height; y++) {
         for (uint32_t x = 0; x < MAP.width; x++) {
             uint16_t map_index = y * MAP.width + x;
             uint32_t cell_type = env->map[map_index];
             
+            float tile_x = x * cell_size;
+            float tile_y = y * cell_size;
+            
             uint32_t tile_id;
+            Color tint = WHITE;
+            
             if (cell_type == CELLS.wall) {
                 tile_id = TILE_IDS.stone_wall;
+                tint = (Color){95, 85, 75, 255};
+                DrawRectangle(tile_x + 1, tile_y + 1, cell_size - 2, cell_size - 2, (Color){10, 8, 6, 100});
             } else if (cell_type == CELLS.door) {
                 tile_id = TILE_IDS.stone_door;
+                tint = (Color){120, 90, 60, 255};
+                float door_glow = time_pulse * 0.8f + 0.2f;
+                tint.r *= door_glow; tint.g *= door_glow; tint.b *= door_glow;
             } else if (cell_type == CELLS.vendor) {
                 tile_id = (env->current_phase == PHASES.town) ? TILE_IDS.vendor_stall : TILE_IDS.stone_floor;
+                tint = (Color){88, 80, 70, 255};
             } else {
                 tile_id = (env->current_phase == PHASES.town) ? TILE_IDS.town_floor : TILE_IDS.stone_floor;
+                
+                if (env->current_phase == PHASES.rift) {
+                    float distance_from_top = (float)y / MAP.height;
+                    float distance_from_left = (float)x / MAP.width;
+                    
+                    float base_gray = 85 + distance_from_top * 15;
+                    float variation = sinf(x * 0.2f + y * 0.15f) * 8;
+                    
+                    uint8_t gray_value = (uint8_t)(base_gray + variation);
+                    tint = (Color){gray_value, gray_value, gray_value, 255};
+                    
+                } else {
+                    tint = (Color){88, 82, 70, 255};
+                }
             }
             
-            draw_sprite_tile(sprites->tileset, tile_id, x * cell_size, y * cell_size, cell_size);
+            draw_sprite_tile(sprites->tileset, tile_id, tile_x, tile_y, cell_size);
+            
+            Rectangle tile_rect = {tile_x, tile_y, cell_size, cell_size};
+            DrawTexturePro(sprites->tileset, 
+                          (Rectangle){(tile_id % TILESET_COLS) * SPRITE_SIZE, (tile_id / TILESET_COLS) * SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE},
+                          tile_rect, (Vector2){0, 0}, 0.0f, tint);
         }
     }
 }
@@ -43,9 +88,27 @@ static void render_player(Rift* env, float cell_size) {
         Color player_color = RIFT_COLORS.player;
         Color armor_color = RIFT_COLORS.armor;
         
-        draw_shadow(screen_pos.x, screen_pos.y, cell_size/3, SHADOW_RENDER.offset, SHADOW_RENDER.alpha);
+        float health_ratio = (float)env->player.health / env->player.max_health;
+        if (health_ratio < 0.3f) {
+            float hurt_pulse = sinf(GetTime() * 6.0f) * 0.4f + 0.6f;
+            player_color.r = 255;
+            player_color.g *= hurt_pulse;
+            player_color.b *= hurt_pulse;
+        }
+        
+        float mana_glow = (float)env->player.mana / env->player.max_mana;
+        Color mana_aura = {100, 150, 255, (uint8_t)(60 * mana_glow)};
+        DrawCircle(screen_pos.x, screen_pos.y, cell_size/2.5f, mana_aura);
+        
+        draw_shadow(screen_pos.x, screen_pos.y, cell_size/3, SHADOW_RENDER.offset, SHADOW_RENDER.alpha + 20);
         DrawCircle(screen_pos.x, screen_pos.y, cell_size/3, player_color);
         DrawCircle(screen_pos.x, screen_pos.y, cell_size/4, armor_color);
+        
+        if (env->player.blizzard_cooldown > 0) {
+            float cast_intensity = (float)env->player.blizzard_cooldown / 20.0f;
+            DrawCircle(screen_pos.x, screen_pos.y, cell_size/3 + 3, (Color){173, 216, 230, (uint8_t)(80 * cast_intensity)});
+        }
+        
         return;
     }
     
@@ -131,6 +194,8 @@ static void render_player(Rift* env, float cell_size) {
 }
 
 static void render_monsters(Rift* env, float cell_size) {
+    float pulse = get_ui_pulse(UI_ANIMATION.ui_pulse_med_speed, UI_ANIMATION.ui_pulse_base + 0.1f, UI_ANIMATION.ui_pulse_amplitude - 0.1f);
+    
     for (uint16_t i = 0; i < MONSTER.max_count; i++) {
         if (!env->monsters[i].alive) continue;
         
@@ -147,15 +212,45 @@ static void render_monsters(Rift* env, float cell_size) {
                 cell_size * size_multiplier
             };
             
-            draw_shadow(dest.x + dest.width/2, dest.y + dest.height/2, dest.width/4, SHADOW_RENDER.offset, SHADOW_RENDER.alpha);
-            
-            DrawTexturePro(env->client->sprites.monsters[monster_type], source, dest, 
-                          (Vector2){0, 0}, 0.0f, WHITE);
+            Color monster_tint = WHITE;
+            Color shadow_color = {0, 0, 0, SHADOW_RENDER.alpha + 20};
+            float glow_intensity = 1.0f;
             
             if (monster_type == MONSTERS.elite) {
-                float glow = calculate_glow(env->tick, GLOW_EFFECT.speed, 0.0f);
+                glow_intensity = pulse * 1.5f + 0.5f;
+                monster_tint = (Color){255, 220 + (uint8_t)(35 * pulse), 220 + (uint8_t)(35 * pulse), 255};
+                shadow_color = (Color){60, 20, 20, SHADOW_RENDER.alpha + 40};
+                
+                float elite_glow = dest.width * 0.6f * glow_intensity;
+                DrawCircle(dest.x + dest.width/2, dest.y + dest.height/2, elite_glow, 
+                          (Color){MONSTER_COLORS.elite_r, MONSTER_COLORS.elite_g, MONSTER_COLORS.elite_b, 30});
+            } else if (monster_type == MONSTERS.mage) {
+                monster_tint = (Color){200 + (uint8_t)(55 * pulse), 180 + (uint8_t)(75 * pulse), 255, 255};
+                shadow_color = (Color){20, 20, 60, SHADOW_RENDER.alpha + 20};
+            } else if (monster_type == MONSTERS.heavy_melee) {
+                monster_tint = (Color){255, 200 + (uint8_t)(55 * pulse), 180 + (uint8_t)(75 * pulse), 255};
+                shadow_color = (Color){40, 25, 10, SHADOW_RENDER.alpha + 30};
+            }
+            
+            DrawCircle(dest.x + dest.width/2 + SHADOW_RENDER.offset, dest.y + dest.height/2 + SHADOW_RENDER.offset, 
+                      dest.width/3, shadow_color);
+            
+            DrawTexturePro(env->client->sprites.monsters[monster_type], source, dest, 
+                          (Vector2){0, 0}, 0.0f, monster_tint);
+            
+            if (monster_type == MONSTERS.elite) {
+                float glow = calculate_glow(env->tick, GLOW_EFFECT.speed, i * 0.5f);
+                Color elite_aura = {255, 255, 255, (uint8_t)(GLOW_EFFECT.alpha * glow)};
                 DrawCircleLines(dest.x + dest.width/2, dest.y + dest.height/2, 
-                              dest.width/2 * glow, (Color){255, 255, 255, GLOW_EFFECT.alpha});
+                              dest.width/2 * glow, elite_aura);
+                DrawCircleLines(dest.x + dest.width/2, dest.y + dest.height/2, 
+                              dest.width/2 * glow * 0.7f, (Color){255, 200, 200, (uint8_t)(60 * glow)});
+            }
+            
+            if (env->monsters[i].health < env->monsters[i].max_health * 0.3f) {
+                float hurt_pulse = sinf(GetTime() * 8.0f) * 0.3f + 0.7f;
+                DrawCircle(dest.x + dest.width/2, dest.y + dest.height/2, dest.width/4, 
+                          (Color){255, 50, 50, (uint8_t)(60 * hurt_pulse)});
             }
         } else {
             screen_pos.x += cell_size * 0.5f;
@@ -166,12 +261,22 @@ static void render_monsters(Rift* env, float cell_size) {
         float health_ratio = (float)env->monsters[i].health / env->monsters[i].max_health;
         float half_cell = cell_size * 0.5f;
         float third_cell = cell_size / 3.0f;
-        uint32_t bar_width = (uint32_t)half_cell;
+        uint32_t bar_width = (uint32_t)(half_cell * 1.2f);
         uint32_t half_bar_width = bar_width >> 1;
         int16_t bar_x = screen_pos.x + half_cell - half_bar_width;
-        int16_t bar_y = screen_pos.y - third_cell - HEALTH_BAR_RENDER.offset;
+        int16_t bar_y = screen_pos.y - third_cell - HEALTH_BAR_RENDER.offset - 2;
         
-        draw_health_bar(bar_x, bar_y, bar_width, HEALTH_BAR_RENDER.height, health_ratio);
+        DrawRectangle(bar_x - 1, bar_y - 1, bar_width + 2, HEALTH_BAR_RENDER.height + 2, 
+                      (Color){0, 0, 0, 180});
+        
+        Color health_bg = (Color){60, 20, 20, 255};
+        Color health_fill = health_ratio > 0.5f ? (Color){50, 200, 50, 255} : 
+                           health_ratio > 0.25f ? (Color){200, 150, 50, 255} : 
+                           (Color){200, 50, 50, 255};
+        
+        DrawRectangle(bar_x, bar_y, bar_width, HEALTH_BAR_RENDER.height, health_bg);
+        DrawRectangle(bar_x, bar_y, (int)(bar_width * health_ratio), HEALTH_BAR_RENDER.height, health_fill);
+        DrawRectangleLines(bar_x, bar_y, bar_width, HEALTH_BAR_RENDER.height, (Color){255, 255, 255, 200});
     }
 }
 
@@ -179,6 +284,7 @@ static void render_boss(Rift* env, float cell_size) {
     if (!env->boss.alive) return;
     
     Vector2 screen_pos = grid_to_screen(env->boss.x, env->boss.y, cell_size);
+    float time_pulse = get_ui_pulse(UI_ANIMATION.ui_pulse_fast_speed, UI_ANIMATION.ui_pulse_base, UI_ANIMATION.ui_pulse_amplitude);
     
     if (env->client && env->client->sprites.boss_texture.id) {
         Rectangle source = {0, 0, SPRITE_SIZE * 2, SPRITE_SIZE * 2};
@@ -195,13 +301,28 @@ static void render_boss(Rift* env, float cell_size) {
         dest.x -= (dest.width - cell_size * 2) / 2;
         dest.y -= (dest.height - cell_size * 2) / 2;
         
-        DrawCircle(dest.x + dest.width/2 + BOSS_EFFECT.shadow_offset, dest.y + dest.height/2 + BOSS_EFFECT.shadow_offset, 
-                  dest.width/4, (Color){0, 0, 0, BOSS_EFFECT.shadow_alpha});
+        float danger_aura = dest.width * 1.8f * time_pulse;
+        DrawCircle(dest.x + dest.width/2, dest.y + dest.height/2, danger_aura, 
+                  (Color){120, 20, 20, 25});
         
-        DrawTexturePro(env->client->sprites.boss_texture, source, dest, (Vector2){0, 0}, 0.0f, WHITE);
+        DrawCircle(dest.x + dest.width/2 + BOSS_EFFECT.shadow_offset + 2, dest.y + dest.height/2 + BOSS_EFFECT.shadow_offset + 2, 
+                  dest.width/3, (Color){0, 0, 0, BOSS_EFFECT.shadow_alpha + 30});
+        
+        Color boss_tint = {255, 200 + (uint8_t)(55 * time_pulse), 200 + (uint8_t)(55 * time_pulse), 255};
+        DrawTexturePro(env->client->sprites.boss_texture, source, dest, (Vector2){0, 0}, 0.0f, boss_tint);
+        
+        for (int i = 0; i < 8; i++) {
+            float angle = (i * 45 + GetTime() * 30) * DEG2RAD;
+            float orbit_radius = cell_size * BOSS_EFFECT.size_multiplier * 1.2f;
+            float orbit_x = dest.x + dest.width/2 + cosf(angle) * orbit_radius;
+            float orbit_y = dest.y + dest.height/2 + sinf(angle) * orbit_radius;
+            DrawCircle(orbit_x, orbit_y, 3, (Color){MONSTER_COLORS.elite_r, MONSTER_COLORS.elite_g, MONSTER_COLORS.elite_b, (uint8_t)(150 * time_pulse)});
+        }
         
         DrawCircleLines(dest.x + dest.width/2, dest.y + dest.height/2, cell_size * BOSS_EFFECT.size_multiplier, 
-                       (Color){PLAYER_COLORS.armor_r, 0, PLAYER_COLORS.armor_b, BOSS_EFFECT.aura_alpha});
+                       (Color){PLAYER_COLORS.armor_r, 0, PLAYER_COLORS.armor_b, BOSS_EFFECT.aura_alpha + (uint8_t)(50 * time_pulse)});
+        DrawCircleLines(dest.x + dest.width/2, dest.y + dest.height/2, cell_size * BOSS_EFFECT.size_multiplier * 0.7f, 
+                       (Color){255, 100, 100, (uint8_t)(80 * time_pulse)});
     } else {
         screen_pos.x += cell_size * 0.5f;
         screen_pos.y += cell_size * 0.5f;
@@ -209,12 +330,24 @@ static void render_boss(Rift* env, float cell_size) {
     }
     
     float health_ratio = (float)env->boss.health / env->boss.max_health;
-    uint32_t bar_width = (uint32_t)cell_size;
+    uint32_t bar_width = (uint32_t)(cell_size * 1.5f);
     uint32_t half_bar_width = bar_width >> 1;
     int16_t bar_x = screen_pos.x + cell_size/2 - half_bar_width;
-    int16_t bar_y = screen_pos.y - cell_size/2 - BOSS_EFFECT.health_bar_offset;
+    int16_t bar_y = screen_pos.y - cell_size/2 - BOSS_EFFECT.health_bar_offset - 5;
     
-    draw_health_bar(bar_x, bar_y, bar_width, BOSS_EFFECT.health_bar_height, health_ratio);
+    DrawRectangle(bar_x - 2, bar_y - 2, bar_width + 4, BOSS_EFFECT.health_bar_height + 4, 
+                  (Color){0, 0, 0, 200});
+    
+    Color boss_health_bg = {80, 20, 20, 255};
+    Color boss_health_fill = health_ratio > 0.3f ? (Color){200, 50, 50, 255} : (Color){255, 20, 20, 255};
+    
+    DrawRectangle(bar_x, bar_y, bar_width, BOSS_EFFECT.health_bar_height, boss_health_bg);
+    DrawRectangle(bar_x, bar_y, (int)(bar_width * health_ratio), BOSS_EFFECT.health_bar_height, boss_health_fill);
+    DrawRectangleLines(bar_x, bar_y, bar_width, BOSS_EFFECT.health_bar_height, (Color){255, 200, 200, 255});
+    
+    char boss_text[32];
+    sprintf(boss_text, "BOSS");
+    DrawText(boss_text, bar_x + bar_width/2 - 20, bar_y - 18, 12, (Color){255, 100, 100, 255});
 }
 
 static void render_items(Rift* env, float cell_size) {
@@ -270,66 +403,101 @@ static void render_projectiles(Rift* env, float cell_size) {
         Color projectile_color;
         Color halo_color;
         Color core_color;
+        Color outer_glow;
         float size_multiplier;
+        float pulse_speed = 0.3f;
         
         if (env->projectiles[i].type == PROJECTILE_TYPES.fireball) {
             projectile_color = (Color){EFFECT_COLORS_EXTENDED.fireball_r, EFFECT_COLORS_EXTENDED.fireball_g, 0, 255};
             halo_color = (Color){EFFECT_COLORS_EXTENDED.halo_r, EFFECT_COLORS_EXTENDED.halo_g, 0, 255};
-            core_color = (Color){EFFECT_COLORS_EXTENDED.core_r, EFFECT_COLORS_EXTENDED.core_g, 0, 255};
-            size_multiplier = calculate_pulse(env->tick + i, PROJECTILE_EFFECT.pulse_speed, PROJECTILE_EFFECT.pulse_base, PROJECTILE_EFFECT.pulse_amplitude);
+            core_color = (Color){255, 255, 200, 255};
+            outer_glow = (Color){255, 100, 0, 40};
+            size_multiplier = calculate_pulse(env->tick + i, pulse_speed, PROJECTILE_EFFECT.pulse_base, PROJECTILE_EFFECT.pulse_amplitude);
         } else if (env->projectiles[i].type == PROJECTILE_TYPES.ice_shard) {
             projectile_color = (Color){150, 200, 255, 255};
             halo_color = (Color){200, 230, 255, 255};
             core_color = (Color){255, 255, 255, 255};
-            size_multiplier = 0.8f;
+            outer_glow = (Color){100, 150, 255, 35};
+            size_multiplier = 0.8f + sinf(env->tick * 0.2f + i) * 0.1f;
         } else if (env->projectiles[i].type == PROJECTILE_TYPES.stone_chunk) {
             projectile_color = (Color){MATERIAL_COLORS_EXTENDED.brown_handle_light_r, MATERIAL_COLORS_EXTENDED.brown_handle_light_g, MATERIAL_COLORS_EXTENDED.brown_handle_light_b, 255};
             halo_color = (Color){QUALITY_COLORS.silver, QUALITY_COLORS.silver, QUALITY_COLORS.silver, 255};
             core_color = (Color){MATERIAL_COLORS_EXTENDED.brown_handle_dark_r, MATERIAL_COLORS_EXTENDED.brown_handle_dark_g, MATERIAL_COLORS_EXTENDED.brown_handle_dark_b, 255};
+            outer_glow = (Color){100, 80, 60, 30};
             size_multiplier = 1.2f;
         } else if (env->projectiles[i].type == PROJECTILE_TYPES.energy_bolt) {
             projectile_color = (Color){255, 255, 0, 255};
             halo_color = (Color){255, 215, 0, 255};
-            core_color = (Color){255, 255, 200, 255};
-            size_multiplier = 0.9f;
+            core_color = (Color){255, 255, 255, 255};
+            outer_glow = (Color){255, 255, 0, 50};
+            size_multiplier = 0.9f + sinf(env->tick * 0.5f + i) * 0.2f;
         } else if (env->projectiles[i].type == PROJECTILE_TYPES.dark_orb) {
             projectile_color = (Color){QUALITY_COLORS.epic_purple_r, QUALITY_COLORS.epic_purple_g, QUALITY_COLORS.epic_purple_b, 255};
             halo_color = (Color){PLAYER_COLORS.player_r, PLAYER_COLORS.player_g, PLAYER_COLORS.player_b, 255};
             core_color = (Color){PLAYER_COLORS.armor_r, PLAYER_COLORS.armor_g, PLAYER_COLORS.armor_b, 255};
-            size_multiplier = 1.1f;
+            outer_glow = (Color){80, 20, 120, 45};
+            size_multiplier = 1.1f + sinf(env->tick * 0.4f + i) * 0.15f;
         } else if (env->projectiles[i].type == PROJECTILE_TYPES.melee_strike) {
             projectile_color = (Color){255, 0, 0, 255};
             halo_color = (Color){EFFECT_COLORS_EXTENDED.fireball_r, EFFECT_COLORS_EXTENDED.fireball_g, 0, 255};
-            core_color = (Color){EFFECT_COLORS_EXTENDED.trail_r, EFFECT_COLORS_EXTENDED.trail_g, 100, 255};
+            core_color = (Color){255, 200, 200, 255};
+            outer_glow = (Color){255, 50, 50, 60};
             size_multiplier = 0.7f;
         } else {
             projectile_color = RED;
             halo_color = (Color){EFFECT_COLORS_EXTENDED.halo_r, EFFECT_COLORS_EXTENDED.halo_g, 0, 255};
             core_color = (Color){EFFECT_COLORS_EXTENDED.core_r, EFFECT_COLORS_EXTENDED.core_g, 0, 255};
+            outer_glow = (Color){200, 50, 50, 40};
             size_multiplier = 1.0f;
         }
         
         float lifetime_ratio = (float)env->projectiles[i].lifetime / PROJECTILE_EFFECT.lifetime;
         uint32_t alpha = alpha_from_ratio(lifetime_ratio);
-        projectile_color = fade_color(projectile_color, alpha);
         
         float radius = sixth_cell * size_multiplier;
-        float half_radius = radius * 0.5f;
+        float glow_radius = radius * 2.5f;
+        float halo_radius = radius + PROJECTILE_EFFECT.halo_offset;
+        float core_radius = radius * 0.4f;
+        
         uint32_t half_alpha = alpha >> 1;
         uint32_t third_alpha = alpha / 3;
+        uint32_t glow_alpha = alpha / 4;
         
+        outer_glow = fade_color(outer_glow, glow_alpha);
+        projectile_color = fade_color(projectile_color, alpha);
         halo_color = fade_color(halo_color, half_alpha);
         core_color = fade_color(core_color, alpha);
         
-        DrawCircle(screen_pos.x, screen_pos.y, radius + PROJECTILE_EFFECT.halo_offset, halo_color);
+        DrawCircle(screen_pos.x, screen_pos.y, glow_radius, outer_glow);
+        DrawCircle(screen_pos.x, screen_pos.y, halo_radius, halo_color);
         DrawCircle(screen_pos.x, screen_pos.y, radius, projectile_color);
-        DrawCircle(screen_pos.x, screen_pos.y, half_radius, core_color);
+        DrawCircle(screen_pos.x, screen_pos.y, core_radius, core_color);
+        
+        if (env->projectiles[i].type == PROJECTILE_TYPES.energy_bolt) {
+            float spark_time = GetTime() + i * 0.3f;
+            for (int j = 0; j < 4; j++) {
+                float angle = (j * 90 + spark_time * 180) * DEG2RAD;
+                float spark_x = screen_pos.x + cosf(angle) * radius * 1.5f;
+                float spark_y = screen_pos.y + sinf(angle) * radius * 1.5f;
+                DrawCircle(spark_x, spark_y, 2, (Color){255, 255, 255, alpha/2});
+            }
+        }
         
         Vector2 trail_end = {
-            screen_pos.x - env->projectiles[i].vel_x * PROJECTILE_EFFECT.trail_length,
-            screen_pos.y - env->projectiles[i].vel_y * PROJECTILE_EFFECT.trail_length
+            screen_pos.x - env->projectiles[i].vel_x * PROJECTILE_EFFECT.trail_length * 1.5f,
+            screen_pos.y - env->projectiles[i].vel_y * PROJECTILE_EFFECT.trail_length * 1.5f
         };
-        DrawLineEx(screen_pos, trail_end, PROJECTILE_EFFECT.trail_width, (Color){EFFECT_COLORS_EXTENDED.trail_r, EFFECT_COLORS_EXTENDED.trail_g, 0, third_alpha});
+        
+        Vector2 trail_mid = {
+            screen_pos.x - env->projectiles[i].vel_x * PROJECTILE_EFFECT.trail_length * 0.75f,
+            screen_pos.y - env->projectiles[i].vel_y * PROJECTILE_EFFECT.trail_length * 0.75f
+        };
+        
+        Color trail_color = fade_color(halo_color, third_alpha);
+        Color trail_fade = fade_color(halo_color, third_alpha/2);
+        
+        DrawLineEx(screen_pos, trail_mid, PROJECTILE_EFFECT.trail_width + 1, trail_color);
+        DrawLineEx(trail_mid, trail_end, PROJECTILE_EFFECT.trail_width, trail_fade);
     }
 }
 
@@ -384,12 +552,61 @@ static void render_blizzard_areas(Rift* env, float cell_size) {
     }
 }
 
+static void render_environmental_effects(Rift* env, float cell_size) {
+    float time = GetTime();
+    uint32_t map_width = MAP.width * cell_size;
+    uint32_t map_height = MAP.height * cell_size;
+    
+    for (int i = 0; i < 20; i++) {
+        float particle_time = time + i * 0.3f;
+        float particle_x = (sinf(particle_time * 0.2f) * 0.5f + 0.5f) * map_width;
+        float particle_y = (sinf(particle_time * 0.15f + 1.0f) * 0.5f + 0.5f) * map_height;
+        
+        float particle_size = 1 + sinf(particle_time * 0.8f) * 0.5f;
+        uint8_t alpha = (uint8_t)(30 + 20 * sinf(particle_time * 1.2f));
+        
+        DrawCircle(particle_x, particle_y, particle_size, (Color){100, 120, 140, alpha});
+    }
+    
+    if (env->boss_spawned && env->boss.alive) {
+        for (int i = 0; i < 15; i++) {
+            float danger_time = time * 2 + i * 0.4f;
+            float danger_x = (sinf(danger_time * 0.3f) * 0.5f + 0.5f) * map_width;
+            float danger_y = (sinf(danger_time * 0.25f + 2.0f) * 0.5f + 0.5f) * map_height;
+            
+            float danger_size = 2 + sinf(danger_time * 1.5f) * 1.0f;
+            uint8_t danger_alpha = (uint8_t)(20 + 15 * sinf(danger_time * 0.8f));
+            
+            DrawCircle(danger_x, danger_y, danger_size, (Color){200, 80, 80, danger_alpha});
+        }
+    }
+    
+    for (int edge = 0; edge < 4; edge++) {
+        for (int j = 0; j < 8; j++) {
+            float edge_time = time * 0.5f + j * 0.8f + edge * 1.5f;
+            float edge_intensity = sinf(edge_time) * 0.3f + 0.7f;
+            uint8_t edge_alpha = (uint8_t)(25 * edge_intensity);
+            
+            if (edge == 0) {
+                DrawRectangle(j * (map_width/8), 0, map_width/8, 3, (Color){60, 80, 100, edge_alpha});
+            } else if (edge == 1) {
+                DrawRectangle(j * (map_width/8), map_height - 3, map_width/8, 3, (Color){60, 80, 100, edge_alpha});
+            } else if (edge == 2) {
+                DrawRectangle(0, j * (map_height/8), 3, map_height/8, (Color){60, 80, 100, edge_alpha});
+            } else {
+                DrawRectangle(map_width - 3, j * (map_height/8), 3, map_height/8, (Color){60, 80, 100, edge_alpha});
+            }
+        }
+    }
+}
+
 void render_rift(Rift* env) {
     float cell_size = env->client->cell_size;
     
     BeginMode2D(env->client->camera);
     
     render_background(env, cell_size);
+    render_environmental_effects(env, cell_size);
     render_blizzard_areas(env, cell_size);
     render_items(env, cell_size);
     render_monsters(env, cell_size);

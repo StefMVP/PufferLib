@@ -251,8 +251,8 @@ static const NormalizationConfig NORMALIZATION = {
 
 // Sprite and tileset
 #define SPRITE_SIZE 32
-#define TILESET_COLS 8
-#define TILESET_ROWS 8
+#define TILESET_COLS 1
+#define TILESET_ROWS 1
 
 // Client/Window constants
 #define CLIENT_CELL_SIZE 24

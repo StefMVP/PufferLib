@@ -911,13 +911,13 @@ void unload_sprites(SpriteSystem* sprites) {
 }
 
 void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
-    uint16_t ui_bottom = screen_height - UI_RENDER.height;
+    uint16_t ui_bottom = screen_height - UI_RENDER.height - 10;
     float time = GetTime();
     float pulse = sinf(time * 2.0f) * 0.2f + 0.8f;
     
     Color ui_top = {15, 20, 35, 250};
     Color ui_bot = {5, 10, 20, 250};
-    DrawRectangleGradientV(0, ui_bottom, screen_width, UI_RENDER.height, ui_top, ui_bot);
+    DrawRectangleGradientV(0, ui_bottom, screen_width, UI_RENDER.height + 20, ui_top, ui_bot);
     
     DrawRectangle(0, ui_bottom - 3, screen_width, 3, (Color){100, 120, 150, 200});
     DrawRectangle(0, ui_bottom - 2, screen_width, 2, (Color){150, 180, 220, 150});
@@ -925,7 +925,7 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
     
     float health_ratio = (float)env->player.health / env->player.max_health;
     uint16_t health_globe_x = GLOBE_UI.radius + GLOBE_UI.margin + 10;
-    uint16_t health_globe_y = screen_height - GLOBE_UI.radius - GLOBE_UI.margin;
+    uint16_t health_globe_y = screen_height - GLOBE_UI.radius - GLOBE_UI.margin - 20;
     
     Color health_glow = {255, 50, 50, (uint32_t)(80 * pulse)};
     DrawCircle(health_globe_x, health_globe_y, GLOBE_UI.radius + 8, health_glow);
@@ -953,12 +953,11 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
     
     DrawCircleLines(health_globe_x, health_globe_y, GLOBE_UI.radius, (Color){255, 100, 100, 255});
     DrawCircleLines(health_globe_x, health_globe_y, GLOBE_UI.radius + 1, (Color){255, 150, 150, 150});
-    DrawText("HP", health_globe_x - 10, health_globe_y - 25, 12, (Color){255, 100, 100, 255});
-    DrawText(TextFormat("%d", env->player.health), health_globe_x - 15, health_globe_y - 8, TEXT_SIZES.size_16, WHITE);
+    DrawText(TextFormat("%d", env->player.health), health_globe_x - 12, health_globe_y - 8, TEXT_SIZES.size_16, WHITE);
     
     float mana_ratio = (float)env->player.mana / env->player.max_mana;
     uint16_t mana_globe_x = screen_width - GLOBE_UI.radius - GLOBE_UI.margin - 10;
-    uint16_t mana_globe_y = screen_height - GLOBE_UI.radius - GLOBE_UI.margin;
+    uint16_t mana_globe_y = screen_height - GLOBE_UI.radius - GLOBE_UI.margin - 20;
     
     Color mana_glow = {50, 100, 255, (uint32_t)(80 * pulse)};
     DrawCircle(mana_globe_x, mana_globe_y, GLOBE_UI.radius + 8, mana_glow);
@@ -986,18 +985,18 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
     
     DrawCircleLines(mana_globe_x, mana_globe_y, GLOBE_UI.radius, (Color){100, 150, 255, 255});
     DrawCircleLines(mana_globe_x, mana_globe_y, GLOBE_UI.radius + 1, (Color){150, 180, 255, 150});
-    DrawText("MP", mana_globe_x - 10, mana_globe_y - 25, 12, (Color){100, 150, 255, 255});
-    DrawText(TextFormat("%d", env->player.mana), mana_globe_x - 15, mana_globe_y - 8, TEXT_SIZES.size_16, WHITE);
+    DrawText(TextFormat("%d", env->player.mana), mana_globe_x - 8, mana_globe_y - 8, TEXT_SIZES.size_16, WHITE);
     
     uint16_t center_panel_x = health_globe_x + 80;
     uint16_t center_panel_w = mana_globe_x - center_panel_x - 80;
     uint16_t center_panel_y = ui_bottom + 10;
+    uint16_t center_panel_h = screen_height - center_panel_y - 10;
     
     Color center_bg_top = {30, 35, 50, 200};
     Color center_bg_bot = {15, 20, 30, 200};
-    DrawRectangleGradientV(center_panel_x, center_panel_y, center_panel_w, UI_RENDER.height - 20, center_bg_top, center_bg_bot);
-    DrawRectangleLines(center_panel_x, center_panel_y, center_panel_w, UI_RENDER.height - 20, (Color){100, 120, 150, 255});
-    DrawRectangleLines(center_panel_x - 1, center_panel_y - 1, center_panel_w + 2, UI_RENDER.height - 18, (Color){150, 180, 220, 150});
+    DrawRectangleGradientV(center_panel_x, center_panel_y, center_panel_w, center_panel_h, center_bg_top, center_bg_bot);
+    DrawRectangleLines(center_panel_x, center_panel_y, center_panel_w, center_panel_h, (Color){100, 120, 150, 255});
+    DrawRectangleLines(center_panel_x - 1, center_panel_y - 1, center_panel_w + 2, center_panel_h + 2, (Color){150, 180, 220, 150});
     
     char gold_text[32];
     sprintf(gold_text, "%d Gold", env->player.gold);
@@ -1035,44 +1034,70 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
         DrawText(rift_text, center_panel_x + 20, center_panel_y + 50, 14, rift_color);
         
         if (env->boss_spawned) {
-            Color boss_warning = {255, 100, 100, (uint32_t)(150 + 105 * pulse)};
-            DrawText(">>> BOSS BATTLE! <<<", center_panel_x + 200, center_panel_y + 50, 14, boss_warning);
+            Color boss_warning = {255, 100, 100, (uint32_t)(200 + 55 * pulse)};
+            DrawText(">>> BOSS BATTLE! <<<", screen_width/2 - 100, 20, 20, boss_warning);
+            DrawText(">>> BOSS BATTLE! <<<", screen_width/2 - 99, 19, 20, (Color){255, 200, 200, (uint32_t)(100 + 50 * pulse)});
         }
     } else {
         DrawText(">>> Town Mode <<<", center_panel_x + 20, center_panel_y + 50, 14, (Color){255, 215, 0, 255});
     }
     
-    uint16_t hp_x = center_panel_x + center_panel_w - 120;
-    uint16_t hp_y = screen_height - 35;
-    Color hp_glow = {255, 100, 100, (uint32_t)(60 * pulse)};
-    Color hp_color = (env->player.health_potion_cooldown > 0) ? (Color){100, 50, 50, 255} : (Color){200, 50, 50, 255};
+    uint16_t skill_bar_x = center_panel_x + center_panel_w/2 - 60;
+    uint16_t skill_bar_y = screen_height - 65;
+    uint16_t skill_size = 28;
+    uint16_t skill_spacing = 60;
     
-    DrawCircle(hp_x, hp_y, GLOBE_UI.potion_size + 3, hp_glow);
-    DrawCircle(hp_x, hp_y, GLOBE_UI.potion_size, hp_color);
-    DrawCircleLines(hp_x, hp_y, GLOBE_UI.potion_size, (Color){255, 150, 150, 255});
-    DrawText("Q", hp_x - 5, hp_y - 8, TEXT_SIZES.size_16, WHITE);
-    
+    uint16_t health_pot_x = skill_bar_x;
+    Color health_pot_glow = {255, 100, 100, (uint32_t)(40 * pulse)};
+    Color health_pot_color = (env->player.health_potion_cooldown > 0) ? (Color){80, 40, 40, 255} : (Color){180, 40, 40, 255};
+    DrawCircle(health_pot_x, skill_bar_y, skill_size + 4, health_pot_glow);
+    DrawCircle(health_pot_x, skill_bar_y, skill_size, health_pot_color);
+    DrawCircleLines(health_pot_x, skill_bar_y, skill_size, (Color){255, 120, 120, 255});
+    DrawText("Q", health_pot_x - 4, skill_bar_y + skill_size + 12, 10, (Color){255, 150, 150, 255});
     if (env->player.health_potion_cooldown > 0) {
         float cooldown_ratio = (float)env->player.health_potion_cooldown / POTIONS.health_potion_cooldown;
-        Vector2 hp_center = {hp_x, hp_y};
-        DrawCircleSector(hp_center, GLOBE_UI.potion_size, 0, 360 * cooldown_ratio, 32, (Color){0, 0, 0, 180});
+        Vector2 hp_center = {health_pot_x, skill_bar_y};
+        DrawCircleSector(hp_center, skill_size, 0, 360 * cooldown_ratio, 16, (Color){0, 0, 0, 160});
     }
     
-    uint16_t mp_x = center_panel_x + center_panel_w - 60;
-    uint16_t mp_y = screen_height - 35;
-    Color mp_glow = {100, 150, 255, (uint32_t)(60 * pulse)};
-    Color mp_color = (env->player.mana_potion_cooldown > 0) ? (Color){50, 75, 100, 255} : (Color){50, 100, 200, 255};
-    
-    DrawCircle(mp_x, mp_y, GLOBE_UI.potion_size + 3, mp_glow);
-    DrawCircle(mp_x, mp_y, GLOBE_UI.potion_size, mp_color);
-    DrawCircleLines(mp_x, mp_y, GLOBE_UI.potion_size, (Color){150, 180, 255, 255});
-    DrawText("E", mp_x - 5, mp_y - 8, TEXT_SIZES.size_16, WHITE);
-    
+    uint16_t mana_pot_x = skill_bar_x + skill_spacing;
+    Color mana_pot_glow = {100, 150, 255, (uint32_t)(40 * pulse)};
+    Color mana_pot_color = (env->player.mana_potion_cooldown > 0) ? (Color){40, 60, 80, 255} : (Color){40, 80, 180, 255};
+    DrawCircle(mana_pot_x, skill_bar_y, skill_size + 4, mana_pot_glow);
+    DrawCircle(mana_pot_x, skill_bar_y, skill_size, mana_pot_color);
+    DrawCircleLines(mana_pot_x, skill_bar_y, skill_size, (Color){120, 150, 255, 255});
+    DrawText("E", mana_pot_x - 4, skill_bar_y + skill_size + 12, 10, (Color){150, 180, 255, 255});
     if (env->player.mana_potion_cooldown > 0) {
         float cooldown_ratio = (float)env->player.mana_potion_cooldown / POTIONS.mana_potion_cooldown;
-        Vector2 mp_center = {mp_x, mp_y};
-        DrawCircleSector(mp_center, GLOBE_UI.potion_size, 0, 360 * cooldown_ratio, 32, (Color){0, 0, 0, 180});
+        Vector2 mp_center = {mana_pot_x, skill_bar_y};
+        DrawCircleSector(mp_center, skill_size, 0, 360 * cooldown_ratio, 16, (Color){0, 0, 0, 160});
     }
+    
+    uint16_t blizzard_x = skill_bar_x + skill_spacing * 2;
+    Color blizzard_glow = {173, 216, 230, (uint32_t)(50 * pulse)};
+    Color blizzard_color = (env->player.blizzard_cooldown > 0) ? (Color){60, 80, 100, 255} : (Color){100, 150, 200, 255};
+    bool can_cast = env->player.mana >= BLIZZARD.mana_cost;
+    if (!can_cast) blizzard_color = (Color){40, 40, 40, 255};
+    
+    DrawCircle(blizzard_x, skill_bar_y, skill_size + 4, blizzard_glow);
+    DrawCircle(blizzard_x, skill_bar_y, skill_size, blizzard_color);
+    DrawCircleLines(blizzard_x, skill_bar_y, skill_size, (Color){150, 200, 255, 255});
+    
+    if (env->player.blizzard_cooldown > 0) {
+        for (int i = 0; i < 6; i++) {
+            float angle = i * 60 * DEG2RAD + GetTime() * 2;
+            float ice_x = blizzard_x + cosf(angle) * (skill_size * 0.6f);
+            float ice_y = skill_bar_y + sinf(angle) * (skill_size * 0.6f);
+            DrawCircle(ice_x, ice_y, 2, (Color){200, 230, 255, 150});
+        }
+    } else if (can_cast) {
+        DrawText("*", blizzard_x - 4, skill_bar_y - 12, 20, (Color){173, 216, 230, 255});
+        DrawText("*", blizzard_x + 8, skill_bar_y - 8, 16, (Color){173, 216, 230, 200});
+        DrawText("*", blizzard_x - 8, skill_bar_y + 4, 12, (Color){173, 216, 230, 180});
+    }
+    
+    DrawText("SPACE", blizzard_x - 18, skill_bar_y + skill_size + 12, 10, (Color){150, 180, 200, 255});
+    
     
     Rectangle help_icon = {5, 5, 20, 20};
     Vector2 mouse_pos = GetMousePosition();
