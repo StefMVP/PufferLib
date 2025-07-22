@@ -2,8 +2,15 @@
 
 A Diablo-style action RPG environment where agents play as a sorceress
 navigating between rift dungeons (fighting monsters and bosses) and 
-town (managing inventory and vendors). Features dynamic action/observation
-spaces based on the current phase.
+town (managing inventory, equipment, and vendors).
+
+Features two distinct phases:
+- RIFT PHASE: Combat, exploration, monster/boss fights
+- TOWN PHASE: Equipment management, shop purchases, stat allocation
+
+TOWN TESTING MODE: When TOWN_TESTING_MODE=1 in constants.h, rifts are
+auto-completed instantly with rewards, allowing focused training on town
+mechanics (equipment upgrades, purchasing decisions, stat management).
 '''
 
 import numpy as np
@@ -25,18 +32,27 @@ class Rift(pufferlib.PufferEnv):
         seed=0,
     ):
         
-        # Grid-based observation space: 17 player stats + 100 grid cells
-        max_obs_size = 117  # OBS_SIZE from rift.h (17 + 100)
+        # Full observation space: 22 player stats + 100 grid cells + 101 town interface stats  
+        # Player obs: 17 base + 5 extra (duplicate positions + phase) = 22
+        # Town obs: 40 shop slots + 52 equipment slots + 9 interface = 101
+        max_obs_size = 223  # Actual observations (22 + 100 + 101)
         self.single_observation_space = gymnasium.spaces.Box(
             low=0, high=1, shape=(max_obs_size,), dtype=np.float32
         )
         
-        # Action space: 21 discrete actions
-        # 0-3: Cardinal movement (up, down, left, right)
-        # 4-7: Diagonal movement (up-left, up-right, down-left, down-right)
-        # 8: Blizzard, 9: Health potion, 10: Mana potion, 11: Interact, 12: Noop
-        # 13-20: Blizzard while moving (up, down, left, right, up-left, up-right, down-left, down-right)
-        self.single_action_space = gymnasium.spaces.Discrete(21)
+        # Action space: 14 discrete actions (works for both rift and town phases)
+        # RIFT PHASE:
+        #   0-3: Cardinal movement (up, down, left, right)
+        #   4-7: Diagonal movement (up-left, up-right, down-left, down-right)
+        #   8: Blizzard, 9: Health potion, 10: Mana potion, 11: Interact, 12: Noop
+        #   13: Exit town and go to next rift (skip remaining town time)
+        # TOWN PHASE:
+        #   0-3: Navigate equipment/shop (up, down, left, right for WASD navigation)
+        #   11: Interact (buy items, equip items, enter rift portal)
+        #   12: Noop
+        #   13: Exit town and go to next rift (skip remaining town time)
+        #   Other actions ignored in town
+        self.single_action_space = gymnasium.spaces.Discrete(14)
         
         self.num_agents = num_envs
         self.render_mode = render_mode

@@ -10,14 +10,13 @@ typedef struct GameConfig {
     uint16_t max_items;
     float monster_spawn_rate;
     float item_drop_rate;
-    uint8_t player_start_health;
-    uint8_t player_start_mana;
+    uint32_t player_start_health;
+    uint32_t player_start_mana;
     uint16_t starting_gold;
     float monster_move_speed;
     uint16_t episode_length_limit;
     float completion_reward;
     float monster_kill_reward;
-    float item_pickup_reward;
     float death_penalty;
 } GameConfig;
 
@@ -32,32 +31,42 @@ static const GameConfig DEFAULT_CONFIG = {
     .item_drop_rate = 0.3f,
     .player_start_health = PLAYER_MAX_HEALTH,
     .player_start_mana = PLAYER_MAX_MANA,
-    .starting_gold = 100,
+    .starting_gold = 500,
     .monster_move_speed = 0.5f,
     .episode_length_limit = MAX_EPISODE_LENGTH,
-    .completion_reward = 1000.0f,
+    .completion_reward = 10.0f,
     .monster_kill_reward = 10.0f,
-    .item_pickup_reward = 1.0f,
     .death_penalty = 0.0f,
 };
 
+typedef struct InventorySlot {
+    uint32_t item_type;
+    uint32_t item_quality;
+    uint32_t item_level;       // Item level (ilvl)
+    uint32_t stack_size;
+    uint32_t stat_bonuses[4];
+    uint16_t item_value;
+} InventorySlot;
 
 typedef struct Player {
     float x, y;
     float prev_x, prev_y;
     float movement_x, movement_y;
     float facing_x, facing_y;
-    uint8_t inventory[MAX_INVENTORY_SIZE];
-    uint16_t gold;
-    uint8_t health, max_health;
-    uint8_t mana, max_mana;
-    uint8_t damage;
-    uint8_t alive;
-    uint8_t blizzard_cooldown;
-    uint8_t health_potion_cooldown;
-    uint8_t mana_potion_cooldown;
-    uint8_t mana_regen_timer;
-    uint8_t inventory_count;
+    uint32_t old_inventory[MAX_INVENTORY_SIZE];
+    InventorySlot inventory[INVENTORY_SLOTS];
+    uint32_t gold;
+    uint32_t health, max_health;
+    uint32_t mana, max_mana;
+    uint32_t damage;
+    uint32_t alive;
+    uint32_t blizzard_cooldown;
+    uint32_t health_potion_cooldown;
+    uint32_t mana_potion_cooldown;
+    uint32_t mana_regen_timer;
+    uint32_t low_health_penalty_cooldown;
+    uint32_t inventory_count;
+    uint32_t selected_inventory_slot;
 } Player;
 
 typedef struct Monster {
@@ -66,61 +75,171 @@ typedef struct Monster {
     float speed;
     float attack_range;
     uint16_t id;
-    uint8_t health, max_health;
-    uint8_t damage;
-    uint8_t type;
-    uint8_t alive;
-    uint8_t move_cooldown;
-    uint8_t attack_cooldown;
+    uint32_t health, max_health;
+    uint32_t damage;
+    uint32_t type;
+    uint32_t attack_type;
+    uint32_t alive;
+    uint32_t move_cooldown;
+    uint32_t attack_cooldown;
+    uint32_t attack_animation_timer;
 } Monster;
 
 typedef struct Boss {
     float x, y;
-    uint8_t health, max_health;
-    uint8_t damage;
-    uint8_t type;
-    uint8_t alive;
-    uint8_t attack_cooldown;
-    uint8_t special_attack_cooldown;
+    uint32_t health, max_health;
+    uint32_t damage;
+    uint32_t type;
+    uint32_t alive;
+    uint32_t attack_cooldown;
+    uint32_t special_attack_cooldown;
 } Boss;
 
 typedef struct Item {
     float x, y;
-    uint8_t type;
-    uint8_t value;
-    uint8_t active;
+    uint32_t type;
+    uint32_t value;
+    uint32_t active;
     uint16_t id;
 } Item;
 
 typedef struct Projectile {
     float x, y;
     float vel_x, vel_y;
-    uint8_t type;
-    uint8_t damage;
-    uint8_t lifetime;
-    uint8_t active;
+    float target_x, target_y; // For homing projectiles
+    uint32_t type;
+    uint32_t damage;
+    uint32_t lifetime;
+    uint32_t active;
+    uint32_t homing; // Is this a homing projectile?
 } Projectile;
 
 typedef struct BlizzardArea {
     float x, y;
-    uint8_t duration;
-    uint8_t damage_timer;
-    uint8_t active;
+    uint32_t duration;
+    uint32_t damage_timer;
+    uint32_t active;
 } BlizzardArea;
 
 typedef struct Vendor {
     float x, y;
-    uint8_t items_for_sale[10];
-    uint8_t prices[10];
-    uint8_t stock[10];
+    uint32_t items_for_sale[10];
+    uint32_t prices[10];
+    uint32_t stock[10];
 } Vendor;
+
+typedef struct HeroStats {
+    uint32_t level;
+    uint32_t experience;
+    uint32_t experience_to_next;
+    uint32_t stat_points_available;
+    
+    uint32_t strength;
+    uint32_t dexterity;
+    uint32_t intelligence;
+    uint32_t vitality;
+    
+    uint32_t total_strength;
+    uint32_t total_dexterity;
+    uint32_t total_intelligence;
+    uint32_t total_vitality;
+} HeroStats;
+
+typedef struct Equipment {
+    // LEFT COLUMN - From top to bottom
+    uint32_t shoulders_type;
+    uint32_t shoulders_quality;
+    uint32_t shoulders_level;
+    uint32_t shoulders_stat_bonuses[4];
+    
+    uint32_t gloves_type;
+    uint32_t gloves_quality;
+    uint32_t gloves_level;
+    uint32_t gloves_stat_bonuses[4];
+    
+    uint32_t ring_left_type;
+    uint32_t ring_left_quality;
+    uint32_t ring_left_level;
+    uint32_t ring_left_stat_bonuses[4];
+    
+    uint32_t weapon_type;
+    uint32_t weapon_quality;
+    uint32_t weapon_level;
+    uint32_t weapon_stat_bonuses[4];
+    
+    // MIDDLE COLUMN - From top to bottom
+    uint32_t helmet_type;
+    uint32_t helmet_quality;
+    uint32_t helmet_level;
+    uint32_t helmet_stat_bonuses[4];
+    
+    uint32_t armor_type;
+    uint32_t armor_quality;
+    uint32_t armor_level;
+    uint32_t armor_stat_bonuses[4];
+    
+    uint32_t belt_type;
+    uint32_t belt_quality;
+    uint32_t belt_level;
+    uint32_t belt_stat_bonuses[4];
+    
+    uint32_t pants_type;
+    uint32_t pants_quality;
+    uint32_t pants_level;
+    uint32_t pants_stat_bonuses[4];
+    
+    uint32_t boots_type;
+    uint32_t boots_quality;
+    uint32_t boots_level;
+    uint32_t boots_stat_bonuses[4];
+    
+    // RIGHT COLUMN - From top to bottom
+    uint32_t amulet_type;
+    uint32_t amulet_quality;
+    uint32_t amulet_level;
+    uint32_t amulet_stat_bonuses[4];
+    
+    uint32_t bracers_type;
+    uint32_t bracers_quality;
+    uint32_t bracers_level;
+    uint32_t bracers_stat_bonuses[4];
+    
+    uint32_t ring_right_type;
+    uint32_t ring_right_quality;
+    uint32_t ring_right_level;
+    uint32_t ring_right_stat_bonuses[4];
+    
+    uint32_t offhand_type;
+    uint32_t offhand_quality;
+    uint32_t offhand_level;
+    uint32_t offhand_stat_bonuses[4];
+} Equipment;
+
+typedef struct ShopItem {
+    uint32_t item_type;
+    uint32_t item_quality;
+    uint32_t item_level;
+    uint32_t stat_bonuses[4];
+    uint16_t price;
+    uint32_t available;
+} ShopItem;
+
+typedef struct TownInterface {
+    uint16_t frames_remaining;
+    uint32_t warning_phase;
+    uint32_t current_tab;           // TOWN_TAB_CHARACTER or TOWN_TAB_SHOP
+    uint32_t character_mode;        // CHARACTER_MODE_EQUIPMENT or CHARACTER_MODE_INVENTORY
+    uint32_t selected_item_index;   // Currently selected item in current view
+    uint32_t equipment_slot;        // Selected equipment slot (0=weapon, 1=armor, 2=accessory)
+    uint32_t input_cooldown;        // Cooldown for WASD navigation to prevent rapid input
+    int16_t shop_scroll_offset;    // Scroll offset for shop (negative values scroll up)
+} TownInterface;
 
 typedef struct Log {
     float episode_return;
     float episode_length;
     float monsters_killed;
     float boss_kills;
-    float items_collected;
     float gold_earned;
     float damage_dealt;
     float damage_taken;
@@ -130,8 +249,16 @@ typedef struct Log {
     float deaths;
     float completion_rewards;
     float monster_kill_rewards;
-    float item_pickup_rewards;
     float death_penalties;
+    float hero_level;
+    float total_experience;
+    float shop_purchases;
+    float town_time_efficiency;
+    float current_gold;
+    float total_strength;
+    float total_dexterity;
+    float total_intelligence;
+    float total_vitality;
     float n;
 } Log;
 
@@ -178,17 +305,23 @@ typedef struct Rift {
     BlizzardArea blizzard_areas[MAX_BLIZZARD_AREAS];
     Vendor vendor;
     
+    HeroStats hero_stats;
+    Equipment equipment;
+    ShopItem shop_items[SHOP_ITEMS_COUNT];
+    TownInterface town_interface;
+    
     GameConfig config;
     uint32_t tick;
-    uint8_t current_phase;
+    uint32_t current_phase;
+    uint32_t current_rift_level;
     
     uint16_t monsters_spawned;
     uint16_t monsters_killed;
-    uint8_t boss_spawned;
-    uint8_t rift_completed;
+    uint32_t boss_spawned;
+    uint32_t rift_completed;
     
-    uint8_t elites_spawned;
-    uint8_t max_elites;
+    uint32_t elites_spawned;
+    uint32_t max_elites;
     
     uint16_t next_monster_id;
     uint16_t next_item_id;
@@ -198,20 +331,23 @@ typedef struct Rift {
     float step_reward;
     
     uint16_t episode_monsters_killed;
-    uint8_t episode_boss_kills;
-    uint16_t episode_items_collected;
+    uint32_t episode_boss_kills;
     uint16_t episode_gold_earned;
     uint16_t episode_damage_dealt;
     uint16_t episode_damage_taken;
-    uint8_t episode_rift_completions;
-    uint8_t episode_vendor_transactions;
-    uint8_t episode_blizzards_cast;
-    uint8_t episode_deaths;
+    uint32_t episode_rift_completions;
+    uint32_t episode_vendor_transactions;
+    uint32_t episode_blizzards_cast;
+    uint32_t episode_deaths;
     
     float episode_completion_rewards;
     float episode_monster_kill_rewards;
-    float episode_item_pickup_rewards;
     float episode_death_penalties;
+    
+    uint32_t episode_shop_purchases;
+    uint16_t episode_town_time_used;
+    
+    uint32_t human_mode;               // Toggle for human control (1) vs AI (0)
 } Rift;
 
 #include "render.h"
@@ -230,24 +366,45 @@ void c_step(Rift* env);
 void generate_rift_map(Rift* env);
 void generate_town_map(Rift* env);
 
+void init_hero_stats(Rift* env);
+void calculate_total_stats(Rift* env);
+void add_experience(Rift* env, uint16_t exp);
+void level_up_hero(Rift* env);
+
+void generate_shop_inventory(Rift* env);
+void handle_shop_interaction(Rift* env);
+void handle_inventory_interaction(Rift* env);
+void equip_item_from_inventory(Rift* env, uint32_t slot);
+void buy_shop_item(Rift* env, uint32_t shop_slot);
+
+void transition_to_town(Rift* env);
+void transition_to_rift(Rift* env);
+void update_town_timer(Rift* env);
+void handle_town_navigation(Rift* env, int action);
+void handle_town_interaction(Rift* env);
+
+uint32_t is_at_shop_item(Rift* env, uint32_t shop_slot);
+uint32_t is_at_inventory_area(Rift* env);
+uint32_t is_at_vendor(Rift* env);
+uint32_t is_at_rift_portal(Rift* env);
+
 // ============================================================================
 // GAME LOGIC FUNCTIONS
 // ============================================================================
 
 void spawn_monsters(Rift* env);
-void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint8_t pack_size);
-uint8_t get_random_monster_type(Rift* env, uint8_t allow_elite);
+void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint32_t pack_size);
+uint32_t get_random_monster_type(Rift* env, uint32_t allow_elite);
 void update_monsters(Rift* env);
 void update_player(Rift* env);
 void handle_blizzard(Rift* env);
 void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y);
 void update_blizzard_areas(Rift* env);
-void handle_item_pickup(Rift* env);
 void handle_vendor_interaction(Rift* env);
 void spawn_boss(Rift* env);
-void drop_loot(Rift* env, float x, float y);
 
-void spawn_projectile(Rift* env, float start_x, float start_y, float target_x, float target_y, uint8_t type, uint8_t damage);
+void spawn_projectile(Rift* env, float start_x, float start_y, float target_x, float target_y, uint32_t type, uint32_t damage);
+void execute_monster_attack(Rift* env, Monster* monster);
 void update_projectiles(Rift* env);
 
 void compute_observations(Rift* env);
@@ -268,10 +425,10 @@ static inline float distance_squared(float x1, float y1, float x2, float y2) {
     return dx * dx + dy * dy;
 }
 
-static inline uint8_t clamp_uint8(int value, uint8_t min_val, uint8_t max_val) {
+static inline uint32_t clamp_uint32(int value, uint32_t min_val, uint32_t max_val) {
     if (value < min_val) return min_val;
     if (value > max_val) return max_val;
-    return (uint8_t)value;
+    return (uint32_t)value;
 }
 
 static inline float clampf(float value, float min_val, float max_val) {
@@ -294,6 +451,7 @@ void init(Rift* env) {
     env->tick = 0;
     env->config = DEFAULT_CONFIG;
     env->current_phase = PHASE_RIFT;
+    env->current_rift_level = 1; // Start at Rift 1
 }
 
 void allocate(Rift* env) {
@@ -324,8 +482,8 @@ void generate_rift_map(Rift* env) {
 void generate_town_map(Rift* env) {
     memset(env->map, CELL_FLOOR, MAP_SIZE);
     
-    env->vendor.x = MAP_WIDTH / 4;
-    env->vendor.y = MAP_HEIGHT / 2;
+    env->vendor.x = VENDOR_POSITION_X;
+    env->vendor.y = VENDOR_POSITION_Y;
     
     env->vendor.items_for_sale[0] = ITEM_HEALTH_POTION;
     env->vendor.prices[0] = VENDOR_HEALTH_POTION_PRICE;
@@ -336,8 +494,8 @@ void generate_town_map(Rift* env) {
     env->vendor.stock[1] = VENDOR_STOCK_AMOUNT;
 }
 
-void spawn_monster_pack(Rift* env, float center_x, float center_y, uint8_t pack_size, uint8_t monster_type) {
-    for (uint8_t p = 0; p < pack_size; p++) {
+void spawn_monster_pack(Rift* env, float center_x, float center_y, uint32_t pack_size, uint32_t monster_type) {
+    for (uint32_t p = 0; p < pack_size; p++) {
         for (uint16_t i = 0; i < MAX_MONSTERS; i++) {
             if (!env->monsters[i].alive && env->monsters_spawned < MONSTERS_TO_SPAWN) {
                 float angle = ((float)rand() / RAND_MAX) * 2.0f * PI;
@@ -367,6 +525,7 @@ void spawn_monster_pack(Rift* env, float center_x, float center_y, uint8_t pack_
                         env->monsters[i].damage = MAGE_DAMAGE;
                         env->monsters[i].speed = MAGE_SPEED;
                         env->monsters[i].attack_range = MAGE_RANGE;
+                        env->monsters[i].attack_type = ATTACK_TYPE_HOMING_PROJECTILE;
                         break;
                     case MONSTER_HEAVY_MELEE:
                         env->monsters[i].health = HEAVY_HEALTH;
@@ -374,6 +533,7 @@ void spawn_monster_pack(Rift* env, float center_x, float center_y, uint8_t pack_
                         env->monsters[i].damage = HEAVY_DAMAGE;
                         env->monsters[i].speed = HEAVY_SPEED;
                         env->monsters[i].attack_range = HEAVY_RANGE;
+                        env->monsters[i].attack_type = ATTACK_TYPE_CONE_SLAM;
                         break;
                     case MONSTER_LIGHT:
                         env->monsters[i].health = LIGHT_HEALTH;
@@ -381,6 +541,7 @@ void spawn_monster_pack(Rift* env, float center_x, float center_y, uint8_t pack_
                         env->monsters[i].damage = LIGHT_DAMAGE;
                         env->monsters[i].speed = LIGHT_SPEED;
                         env->monsters[i].attack_range = LIGHT_RANGE;
+                        env->monsters[i].attack_type = ATTACK_TYPE_FAST_PROJECTILE;
                         break;
                     case MONSTER_ELITE:
                         env->monsters[i].health = ELITE_HEALTH;
@@ -388,13 +549,15 @@ void spawn_monster_pack(Rift* env, float center_x, float center_y, uint8_t pack_
                         env->monsters[i].damage = ELITE_DAMAGE;
                         env->monsters[i].speed = ELITE_SPEED;
                         env->monsters[i].attack_range = ELITE_RANGE;
+                        env->monsters[i].attack_type = ATTACK_TYPE_PROJECTILE;
                         break;
                     default: // MONSTER_ZOMBIE
                         env->monsters[i].health = MONSTER_BASE_HEALTH;
                         env->monsters[i].max_health = MONSTER_BASE_HEALTH;
                         env->monsters[i].damage = MONSTER_BASE_DAMAGE;
                         env->monsters[i].speed = 0.5f;
-                        env->monsters[i].attack_range = 2.0f;
+                        env->monsters[i].attack_range = 1.5f; // Melee range
+                        env->monsters[i].attack_type = ATTACK_TYPE_MELEE;
                         break;
                 }
                 
@@ -405,8 +568,8 @@ void spawn_monster_pack(Rift* env, float center_x, float center_y, uint8_t pack_
     }
 }
 
-uint8_t get_random_monster_type(Rift* env, uint8_t allow_elite) {
-    uint8_t type_roll = rand() % 100;
+uint32_t get_random_monster_type(Rift* env, uint32_t allow_elite) {
+    uint32_t type_roll = rand() % 100;
     
     if (allow_elite && type_roll < 10 && env->elites_spawned < env->max_elites) {
         return MONSTER_ELITE;
@@ -421,8 +584,8 @@ uint8_t get_random_monster_type(Rift* env, uint8_t allow_elite) {
     }
 }
 
-void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint8_t pack_size) {
-    for (uint8_t p = 0; p < pack_size; p++) {
+void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint32_t pack_size) {
+    for (uint32_t p = 0; p < pack_size; p++) {
         for (uint16_t i = 0; i < MAX_MONSTERS; i++) {
             if (!env->monsters[i].alive && env->monsters_spawned < MONSTERS_TO_SPAWN) {
                 float angle = ((float)rand() / RAND_MAX) * 2.0f * PI;
@@ -435,7 +598,7 @@ void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint8_t pack_
                 if (spawn_y < 1) spawn_y = 1;
                 if (spawn_y >= MAP_HEIGHT - 1) spawn_y = MAP_HEIGHT - 2;
                 
-                uint8_t monster_type = get_random_monster_type(env, 1);
+                uint32_t monster_type = get_random_monster_type(env, 1);
                 if (monster_type == MONSTER_ELITE) {
                     env->elites_spawned++;
                 }
@@ -457,6 +620,7 @@ void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint8_t pack_
                         env->monsters[i].damage = (int)(MAGE_DAMAGE * 0.75f);
                         env->monsters[i].speed = MAGE_SPEED;
                         env->monsters[i].attack_range = MAGE_RANGE;
+                        env->monsters[i].attack_type = ATTACK_TYPE_HOMING_PROJECTILE;
                         break;
                     case MONSTER_HEAVY_MELEE:
                         env->monsters[i].health = HEAVY_HEALTH;
@@ -464,6 +628,7 @@ void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint8_t pack_
                         env->monsters[i].damage = (int)(HEAVY_DAMAGE * 0.75f);
                         env->monsters[i].speed = HEAVY_SPEED;
                         env->monsters[i].attack_range = HEAVY_RANGE;
+                        env->monsters[i].attack_type = ATTACK_TYPE_CONE_SLAM;
                         break;
                     case MONSTER_LIGHT:
                         env->monsters[i].health = LIGHT_HEALTH;
@@ -471,6 +636,7 @@ void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint8_t pack_
                         env->monsters[i].damage = (int)(LIGHT_DAMAGE * 0.75f);
                         env->monsters[i].speed = LIGHT_SPEED;
                         env->monsters[i].attack_range = LIGHT_RANGE;
+                        env->monsters[i].attack_type = ATTACK_TYPE_FAST_PROJECTILE;
                         break;
                     case MONSTER_ELITE:
                         env->monsters[i].health = ELITE_HEALTH;
@@ -478,13 +644,15 @@ void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint8_t pack_
                         env->monsters[i].damage = (int)(ELITE_DAMAGE * 0.75f);
                         env->monsters[i].speed = ELITE_SPEED;
                         env->monsters[i].attack_range = ELITE_RANGE;
+                        env->monsters[i].attack_type = ATTACK_TYPE_PROJECTILE;
                         break;
                     default: // MONSTER_ZOMBIE
                         env->monsters[i].health = MONSTER_BASE_HEALTH;
                         env->monsters[i].max_health = MONSTER_BASE_HEALTH;
                         env->monsters[i].damage = (int)(MONSTER_BASE_DAMAGE * 0.75f);
                         env->monsters[i].speed = 0.5f;
-                        env->monsters[i].attack_range = 2.0f;
+                        env->monsters[i].attack_range = 1.5f; // Melee range
+                        env->monsters[i].attack_type = ATTACK_TYPE_MELEE;
                         break;
                 }
                 
@@ -503,7 +671,7 @@ void spawn_monsters(Rift* env) {
         float spawn_x = 3.0f + ((float)rand() / RAND_MAX) * (MAP_WIDTH - 6.0f);
         float spawn_y = 3.0f + ((float)rand() / RAND_MAX) * (MAP_HEIGHT - 6.0f);
         
-        uint8_t pack_size = 2 + rand() % 3;
+        uint32_t pack_size = 2 + rand() % 3;
         
         spawn_diverse_pack(env, spawn_x, spawn_y, pack_size);
     }
@@ -548,8 +716,7 @@ void update_monsters(Rift* env) {
                     monster->move_cooldown = MONSTER_MOVEMENT_COOLDOWN;
                 } else {
                     if (env->player.alive && monster->attack_cooldown == 0 && dist_to_player <= monster->attack_range) {
-                        spawn_projectile(env, monster->x, monster->y, env->player.x, env->player.y, 
-                                       PROJECTILE_FIREBALL, monster->damage);
+                        execute_monster_attack(env, monster);
                         monster->attack_cooldown = MONSTER_ATTACK_COOLDOWN;
                     }
                 }
@@ -582,6 +749,21 @@ void update_player(Rift* env) {
     if (env->player.mana_potion_cooldown > 0) {
         env->player.mana_potion_cooldown--;
     }
+    if (env->player.low_health_penalty_cooldown > 0) {
+        env->player.low_health_penalty_cooldown--;
+    }
+    
+    // Check for low health penalty (only in rift phase)
+    if (env->current_phase == PHASE_RIFT && env->player.alive) {
+        float health_percent = (float)env->player.health / (float)env->player.max_health;
+        if (health_percent <= LOW_HEALTH_THRESHOLD && 
+            env->player.health_potion_cooldown == 0 && 
+            env->player.low_health_penalty_cooldown == 0) {
+            env->step_reward += LOW_HEALTH_PENALTY;
+            env->episode_return += LOW_HEALTH_PENALTY;
+            env->player.low_health_penalty_cooldown = LOW_HEALTH_PENALTY_COOLDOWN;
+        }
+    }
     
     env->player.mana_regen_timer++;
     if (env->player.mana_regen_timer >= MANA_REGEN_RATE) {
@@ -589,6 +771,21 @@ void update_player(Rift* env) {
         if (env->player.mana < env->player.max_mana) {
             env->player.mana++;
         }
+    }
+    
+    if (env->current_phase == PHASE_TOWN) {
+        // Handle navigation (WASD) in town
+        if (action == ACTION_MOVE_UP || action == ACTION_MOVE_DOWN || 
+            action == ACTION_MOVE_LEFT || action == ACTION_MOVE_RIGHT) {
+            handle_town_navigation(env, action);
+            return;
+        }
+        // Handle exit town action (Z key)
+        if (action == ACTION_EXIT_TOWN) {
+            transition_to_rift(env);
+            return;
+        }
+        // Let ACTION_INTERACT fall through to the switch statement below
     }
     
     float new_x = env->player.x;
@@ -653,68 +850,26 @@ void update_player(Rift* env) {
                 handle_blizzard(env);
             }
             break;
-        case ACTION_BLIZZARD_UP:
-            if (env->player.blizzard_cooldown == 0 && env->player.mana >= BLIZZARD_MANA_COST) {
-                handle_blizzard_with_direction(env, 0.0f, -1.0f);
-            }
-            break;
-        case ACTION_BLIZZARD_DOWN:
-            if (env->player.blizzard_cooldown == 0 && env->player.mana >= BLIZZARD_MANA_COST) {
-                handle_blizzard_with_direction(env, 0.0f, 1.0f);
-            }
-            break;
-        case ACTION_BLIZZARD_LEFT:
-            if (env->player.blizzard_cooldown == 0 && env->player.mana >= BLIZZARD_MANA_COST) {
-                handle_blizzard_with_direction(env, -1.0f, 0.0f);
-            }
-            break;
-        case ACTION_BLIZZARD_RIGHT:
-            if (env->player.blizzard_cooldown == 0 && env->player.mana >= BLIZZARD_MANA_COST) {
-                handle_blizzard_with_direction(env, 1.0f, 0.0f);
-            }
-            break;
-        case ACTION_BLIZZARD_UP_LEFT:
-            if (env->player.blizzard_cooldown == 0 && env->player.mana >= BLIZZARD_MANA_COST) {
-                handle_blizzard_with_direction(env, -0.707f, -0.707f);
-            }
-            break;
-        case ACTION_BLIZZARD_UP_RIGHT:
-            if (env->player.blizzard_cooldown == 0 && env->player.mana >= BLIZZARD_MANA_COST) {
-                handle_blizzard_with_direction(env, 0.707f, -0.707f);
-            }
-            break;
-        case ACTION_BLIZZARD_DOWN_LEFT:
-            if (env->player.blizzard_cooldown == 0 && env->player.mana >= BLIZZARD_MANA_COST) {
-                handle_blizzard_with_direction(env, -0.707f, 0.707f);
-            }
-            break;
-        case ACTION_BLIZZARD_DOWN_RIGHT:
-            if (env->player.blizzard_cooldown == 0 && env->player.mana >= BLIZZARD_MANA_COST) {
-                handle_blizzard_with_direction(env, 0.707f, 0.707f);
-            }
-            break;
         case ACTION_USE_HEALTH_POTION:
-            if (env->player.health_potion_cooldown == 0 && env->player.health < env->player.max_health) {
-                env->player.health = clamp_uint8(env->player.health + HEALTH_POTION_HEAL, 0, env->player.max_health);
+            if (env->player.alive && env->player.health_potion_cooldown == 0 && env->player.health < env->player.max_health) {
+                env->player.health = clamp_uint32(env->player.health + HEALTH_POTION_HEAL, 0, env->player.max_health);
                 env->player.health_potion_cooldown = HEALTH_POTION_COOLDOWN;
             }
             break;
         case ACTION_USE_MANA_POTION:
-            if (env->player.mana_potion_cooldown == 0 && env->player.mana < env->player.max_mana) {
-                env->player.mana = clamp_uint8(env->player.mana + MANA_POTION_RESTORE, 0, env->player.max_mana);
+            if (env->player.alive && env->player.mana_potion_cooldown == 0 && env->player.mana < env->player.max_mana) {
+                env->player.mana = clamp_uint32(env->player.mana + MANA_POTION_RESTORE, 0, env->player.max_mana);
                 env->player.mana_potion_cooldown = MANA_POTION_COOLDOWN;
             }
             break;
         case ACTION_INTERACT:
             if (env->current_phase == PHASE_TOWN) {
-                handle_vendor_interaction(env);
+                handle_town_interaction(env);
             }
             break;
     }
     
-    if (env->current_phase == PHASE_RIFT) {
-        handle_item_pickup(env);
-    }
+    // Item pickup removed - gold is given directly
 }
 
 
@@ -742,7 +897,7 @@ void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y) {
             float dist_sq = distance_squared(blizzard_x, blizzard_y, 
                                             env->monsters[j].x, env->monsters[j].y);
             if (dist_sq <= BLIZZARD_RADIUS_SQUARED) {
-                uint8_t damage_amount = (env->monsters[j].health <= BLIZZARD_DAMAGE) ? 
+                uint32_t damage_amount = (env->monsters[j].health <= BLIZZARD_DAMAGE) ? 
                                        env->monsters[j].health : BLIZZARD_DAMAGE;
                 if (env->monsters[j].health <= BLIZZARD_DAMAGE) {
                     env->monsters[j].health = 0;
@@ -752,9 +907,13 @@ void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y) {
                     env->step_reward += env->config.monster_kill_reward;
                     env->episode_return += env->config.monster_kill_reward;
                     env->episode_monster_kill_rewards += env->config.monster_kill_reward;
+                    add_experience(env, EXP_PER_MONSTER_KILL);
                     
+                    // Give gold directly instead of dropping items
                     if ((float)rand() / RAND_MAX < env->config.item_drop_rate) {
-                        drop_loot(env, env->monsters[j].x, env->monsters[j].y);
+                        uint16_t gold_amount = GOLD_DROP_MIN + rand() % GOLD_DROP_RANGE;
+                        env->player.gold += gold_amount;
+                        env->episode_gold_earned += gold_amount;
                     }
                 } else {
                     env->monsters[j].health -= damage_amount;
@@ -767,12 +926,13 @@ void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y) {
     if (env->boss.alive) {
         float dist_sq = distance_squared(blizzard_x, blizzard_y, env->boss.x, env->boss.y);
         if (dist_sq <= BLIZZARD_RADIUS_SQUARED) {
-            uint8_t damage_amount = (env->boss.health <= BLIZZARD_DAMAGE) ? 
+            uint32_t damage_amount = (env->boss.health <= BLIZZARD_DAMAGE) ? 
                                    env->boss.health : BLIZZARD_DAMAGE;
             if (env->boss.health <= BLIZZARD_DAMAGE) {
                 env->boss.health = 0;
                 env->boss.alive = 0;
                 env->episode_boss_kills++;
+                add_experience(env, EXP_PER_BOSS_KILL);
             } else {
                 env->boss.health -= damage_amount;
             }
@@ -781,7 +941,7 @@ void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y) {
     }
     
     // Create the blizzard area for continued DOT
-    for (uint8_t i = 0; i < MAX_BLIZZARD_AREAS; i++) {
+    for (uint32_t i = 0; i < MAX_BLIZZARD_AREAS; i++) {
         if (!env->blizzard_areas[i].active) {
             env->blizzard_areas[i].x = blizzard_x;
             env->blizzard_areas[i].y = blizzard_y;
@@ -800,7 +960,7 @@ void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y) {
 }
 
 void update_blizzard_areas(Rift* env) {
-    for (uint8_t i = 0; i < MAX_BLIZZARD_AREAS; i++) {
+    for (uint32_t i = 0; i < MAX_BLIZZARD_AREAS; i++) {
         if (env->blizzard_areas[i].active) {
             BlizzardArea* area = &env->blizzard_areas[i];
             
@@ -820,7 +980,7 @@ void update_blizzard_areas(Rift* env) {
                         float dist_sq = distance_squared(area->x, area->y, 
                                                         env->monsters[j].x, env->monsters[j].y);
                         if (dist_sq <= BLIZZARD_RADIUS_SQUARED) {
-                            uint8_t damage_amount = (env->monsters[j].health <= BLIZZARD_DAMAGE) ? 
+                            uint32_t damage_amount = (env->monsters[j].health <= BLIZZARD_DAMAGE) ? 
                                                    env->monsters[j].health : BLIZZARD_DAMAGE;
                             if (env->monsters[j].health <= BLIZZARD_DAMAGE) {
                                 env->monsters[j].health = 0;
@@ -830,9 +990,13 @@ void update_blizzard_areas(Rift* env) {
                                 env->step_reward += env->config.monster_kill_reward;
                                 env->episode_return += env->config.monster_kill_reward;
                                 env->episode_monster_kill_rewards += env->config.monster_kill_reward;
+                                add_experience(env, EXP_PER_MONSTER_KILL);
                                 
+                                // Give gold directly instead of dropping items
                                 if ((float)rand() / RAND_MAX < env->config.item_drop_rate) {
-                                    drop_loot(env, env->monsters[j].x, env->monsters[j].y);
+                                    uint16_t gold_amount = GOLD_DROP_MIN + rand() % GOLD_DROP_RANGE;
+                                    env->player.gold += gold_amount;
+                                    env->episode_gold_earned += gold_amount;
                                 }
                             } else {
                                 env->monsters[j].health -= damage_amount;
@@ -845,12 +1009,13 @@ void update_blizzard_areas(Rift* env) {
                 if (env->boss.alive) {
                     float dist_sq = distance_squared(area->x, area->y, env->boss.x, env->boss.y);
                     if (dist_sq <= BLIZZARD_RADIUS_SQUARED) {
-                        uint8_t damage_amount = (env->boss.health <= BLIZZARD_DAMAGE) ? 
+                        uint32_t damage_amount = (env->boss.health <= BLIZZARD_DAMAGE) ? 
                                                env->boss.health : BLIZZARD_DAMAGE;
                         if (env->boss.health <= BLIZZARD_DAMAGE) {
                             env->boss.health = 0;
                             env->boss.alive = 0;
                             env->episode_boss_kills++;
+                            add_experience(env, EXP_PER_BOSS_KILL);
                         } else {
                             env->boss.health -= damage_amount;
                         }
@@ -884,33 +1049,10 @@ void spawn_boss(Rift* env) {
     }
 }
 
-void drop_loot(Rift* env, float x, float y) {
-    for (uint8_t i = 0; i < MAX_ITEMS; i++) {
-        if (!env->items[i].active) {
-            env->items[i].x = (float)((int)x) + 0.5f;
-            env->items[i].y = (float)((int)y) + 0.5f;
-            env->items[i].active = 1;
-            env->items[i].id = env->next_item_id++;
-            
-            uint8_t rand_val = rand() % 100;
-            if (rand_val < GOLD_DROP_CHANCE) {
-                env->items[i].type = ITEM_GOLD;
-                env->items[i].value = GOLD_DROP_MIN + rand() % GOLD_DROP_RANGE;
-            } else if (rand_val < HEALTH_POTION_DROP_CHANCE) {
-                env->items[i].type = ITEM_HEALTH_POTION;
-                env->items[i].value = 1;
-            } else {
-                env->items[i].type = ITEM_MANA_POTION;
-                env->items[i].value = 1;
-            }
-            break;
-        }
-    }
-}
 
 
-void spawn_projectile(Rift* env, float start_x, float start_y, float target_x, float target_y, uint8_t type, uint8_t damage) {
-    for (uint8_t i = 0; i < MAX_PROJECTILES; i++) {
+void spawn_projectile(Rift* env, float start_x, float start_y, float target_x, float target_y, uint32_t type, uint32_t damage) {
+    for (uint32_t i = 0; i < MAX_PROJECTILES; i++) {
         if (!env->projectiles[i].active) {
             env->projectiles[i].x = start_x;
             env->projectiles[i].y = start_y;
@@ -918,6 +1060,7 @@ void spawn_projectile(Rift* env, float start_x, float start_y, float target_x, f
             env->projectiles[i].damage = damage;
             env->projectiles[i].lifetime = PROJECTILE_LIFETIME;
             env->projectiles[i].active = 1;
+            env->projectiles[i].homing = 0;
             
             float dx = target_x - start_x;
             float dy = target_y - start_y;
@@ -935,10 +1078,129 @@ void spawn_projectile(Rift* env, float start_x, float start_y, float target_x, f
     }
 }
 
+void spawn_homing_projectile(Rift* env, float start_x, float start_y, float target_x, float target_y, uint32_t type, uint32_t damage) {
+    for (uint32_t i = 0; i < MAX_PROJECTILES; i++) {
+        if (!env->projectiles[i].active) {
+            env->projectiles[i].x = start_x;
+            env->projectiles[i].y = start_y;
+            env->projectiles[i].target_x = target_x;
+            env->projectiles[i].target_y = target_y;
+            env->projectiles[i].type = type;
+            env->projectiles[i].damage = damage;
+            env->projectiles[i].lifetime = PROJECTILE_LIFETIME + 30; // Live longer for homing
+            env->projectiles[i].active = 1;
+            env->projectiles[i].homing = 1;
+            
+            // Start with initial velocity toward target
+            float dx = target_x - start_x;
+            float dy = target_y - start_y;
+            float dist = sqrtf(dx * dx + dy * dy);
+            
+            if (dist > 0) {
+                env->projectiles[i].vel_x = (dx / dist) * PROJECTILE_SPEED_HOMING;
+                env->projectiles[i].vel_y = (dy / dist) * PROJECTILE_SPEED_HOMING;
+            }
+            break;
+        }
+    }
+}
+
+void spawn_fast_projectile(Rift* env, float start_x, float start_y, float target_x, float target_y, uint32_t type, uint32_t damage) {
+    for (uint32_t i = 0; i < MAX_PROJECTILES; i++) {
+        if (!env->projectiles[i].active) {
+            env->projectiles[i].x = start_x;
+            env->projectiles[i].y = start_y;
+            env->projectiles[i].type = type;
+            env->projectiles[i].damage = damage;
+            env->projectiles[i].lifetime = PROJECTILE_LIFETIME;
+            env->projectiles[i].active = 1;
+            env->projectiles[i].homing = 0;
+            
+            float dx = target_x - start_x;
+            float dy = target_y - start_y;
+            float dist = sqrtf(dx * dx + dy * dy);
+            
+            if (dist > 0) {
+                env->projectiles[i].vel_x = (dx / dist) * PROJECTILE_SPEED_FAST;
+                env->projectiles[i].vel_y = (dy / dist) * PROJECTILE_SPEED_FAST;
+            }
+            break;
+        }
+    }
+}
+
+void execute_monster_attack(Rift* env, Monster* monster) {
+    switch (monster->attack_type) {
+        case ATTACK_TYPE_MELEE:
+            // Direct melee damage - no projectile needed
+            monster->attack_animation_timer = 20; // 20 frames of animation
+            if (monster->damage >= env->player.health) {
+                env->player.health = 0;
+                env->player.alive = 0;
+            } else {
+                env->player.health -= monster->damage;
+            }
+            break;
+            
+        case ATTACK_TYPE_PROJECTILE:
+            spawn_projectile(env, monster->x, monster->y, env->player.x, env->player.y, 
+                           PROJECTILE_FIREBALL, monster->damage);
+            break;
+            
+        case ATTACK_TYPE_FAST_PROJECTILE:
+            spawn_fast_projectile(env, monster->x, monster->y, env->player.x, env->player.y, 
+                                PROJECTILE_FIREBALL, monster->damage);
+            break;
+            
+        case ATTACK_TYPE_HOMING_PROJECTILE:
+            spawn_homing_projectile(env, monster->x, monster->y, env->player.x, env->player.y, 
+                                  PROJECTILE_FIREBALL, monster->damage);
+            break;
+            
+        case ATTACK_TYPE_CONE_SLAM:
+            // Ground slam with cone damage
+            monster->attack_animation_timer = 30; // 30 frames of slam animation
+            
+            // Calculate cone area in front of monster
+            float dx = env->player.x - monster->x;
+            float dy = env->player.y - monster->y;
+            float dist_to_player = sqrtf(dx * dx + dy * dy);
+            
+            if (dist_to_player <= monster->attack_range + 1.0f) {
+                float angle_to_player = atan2f(dy, dx);
+                float monster_facing = atan2f(env->player.y - monster->y, env->player.x - monster->x);
+                float angle_diff = fabsf(angle_to_player - monster_facing);
+                
+                // 60 degree cone (π/3 radians)
+                if (angle_diff <= PI/3 || angle_diff >= (2*PI - PI/3)) {
+                    if (monster->damage >= env->player.health) {
+                        env->player.health = 0;
+                        env->player.alive = 0;
+                    } else {
+                        env->player.health -= monster->damage;
+                    }
+                }
+            }
+            break;
+    }
+}
+
 void update_projectiles(Rift* env) {
-    for (uint8_t i = 0; i < MAX_PROJECTILES; i++) {
+    for (uint32_t i = 0; i < MAX_PROJECTILES; i++) {
         if (env->projectiles[i].active) {
             Projectile* proj = &env->projectiles[i];
+            
+            // Update homing projectiles to track player
+            if (proj->homing && env->player.alive) {
+                float dx = env->player.x - proj->x;
+                float dy = env->player.y - proj->y;
+                float dist = distance(proj->x, proj->y, env->player.x, env->player.y);
+                
+                if (dist > 0.1f) {
+                    proj->vel_x = (dx / dist) * PROJECTILE_SPEED_HOMING;
+                    proj->vel_y = (dy / dist) * PROJECTILE_SPEED_HOMING;
+                }
+            }
             
             proj->x += proj->vel_x;
             proj->y += proj->vel_y;
@@ -958,16 +1220,17 @@ void update_projectiles(Rift* env) {
             
             float dist_to_player = distance(env->player.x, env->player.y, proj->x, proj->y);
             if (dist_to_player <= 0.8f && env->player.alive) {
-                env->player.health -= proj->damage;
                 env->episode_damage_taken += proj->damage;
                 
-                if (env->player.health <= 0) {
-                    env->player.alive = 0;
+                if (proj->damage >= env->player.health) {
                     env->player.health = 0;
+                    env->player.alive = 0;
                     env->step_reward += env->config.death_penalty;
                     env->episode_return += env->config.death_penalty;
                     env->episode_death_penalties += env->config.death_penalty;
                     env->episode_deaths++;
+                } else {
+                    env->player.health -= proj->damage;
                 }
                 
                 proj->active = 0;
@@ -977,44 +1240,27 @@ void update_projectiles(Rift* env) {
 }
 
 
-void handle_item_pickup(Rift* env) {
-    for (uint8_t i = 0; i < MAX_ITEMS; i++) {
-        if (env->items[i].active) {
-            float dist = distance(env->player.x, env->player.y, 
-                                env->items[i].x, env->items[i].y);
-            if (dist <= 1.0f) {
-                if (env->items[i].type == ITEM_GOLD) {
-                    env->player.gold += env->items[i].value;
-                    env->episode_gold_earned += env->items[i].value;
-                } else if (env->player.inventory_count < MAX_INVENTORY_SIZE) {
-                    env->player.inventory[env->player.inventory_count] = env->items[i].type;
-                    env->player.inventory_count++;
-                }
-                
-                env->items[i].active = 0;
-                env->episode_items_collected++;
-                env->step_reward += env->config.item_pickup_reward;
-                env->episode_return += env->config.item_pickup_reward;
-                env->episode_item_pickup_rewards += env->config.item_pickup_reward;
-                break;
-            }
-        }
-    }
-}
 
 void handle_vendor_interaction(Rift* env) {
     float dist = distance(env->player.x, env->player.y, env->vendor.x, env->vendor.y);
     if (dist <= 2.0f) {
         for (int i = 0; i < 10; i++) {
             if (env->vendor.stock[i] > 0 && env->player.gold >= env->vendor.prices[i]) {
-                if (env->player.inventory_count < MAX_INVENTORY_SIZE) {
-                    env->player.gold -= env->vendor.prices[i];
-                    env->vendor.stock[i]--;
-                    env->player.inventory[env->player.inventory_count] = env->vendor.items_for_sale[i];
-                    env->player.inventory_count++;
-                    env->episode_vendor_transactions++;
-                    break;
+                for (uint32_t j = 0; j < INVENTORY_SLOTS; j++) {
+                    if (env->player.inventory[j].item_type == EQUIPMENT_NONE) {
+                        env->player.gold -= env->vendor.prices[i];
+                        env->vendor.stock[i]--;
+                        env->player.inventory[j].item_type = EQUIPMENT_CONSUMABLE;
+                        env->player.inventory[j].item_quality = QUALITY_COMMON;
+                        env->player.inventory[j].stack_size = 1;
+                        env->player.inventory[j].item_value = env->vendor.prices[i];
+                        memset(env->player.inventory[j].stat_bonuses, 0, sizeof(env->player.inventory[j].stat_bonuses));
+                        env->player.inventory_count++;
+                        env->episode_vendor_transactions++;
+                        break;
+                    }
                 }
+                break;
             }
         }
     }
@@ -1022,7 +1268,7 @@ void handle_vendor_interaction(Rift* env) {
 
 
 void compute_observations(Rift* env) {
-    uint8_t obs_idx = 0;
+    uint32_t obs_idx = 0;
     
     env->observations[obs_idx++] = (float)env->player.health / env->player.max_health;
     env->observations[obs_idx++] = (float)env->player.mana / env->player.max_mana;
@@ -1129,7 +1375,7 @@ void compute_observations(Rift* env) {
     }
     
     // Place items in grid
-    for (uint8_t i = 0; i < MAX_ITEMS; i++) {
+    for (uint32_t i = 0; i < MAX_ITEMS; i++) {
         if (env->items[i].active) {
             int grid_x = (int)env->items[i].x - player_grid_center_x + (GRID_SIZE / 2);
             int grid_y = (int)env->items[i].y - player_grid_center_y + (GRID_SIZE / 2);
@@ -1144,9 +1390,118 @@ void compute_observations(Rift* env) {
         }
     }
     
+    // Zero out grid observations in town mode to avoid confusing agent
     for (int i = 0; i < GRID_OBS_SIZE; i++) {
-        env->observations[obs_idx++] = grid[i];
+        env->observations[obs_idx++] = (env->current_phase == PHASE_TOWN) ? 0.0f : grid[i];
     }
+    
+    env->observations[obs_idx++] = (float)env->town_interface.frames_remaining / TOWN_MODE_TIME_LIMIT;
+    env->observations[obs_idx++] = env->current_phase == PHASE_TOWN ? 1.0f : 0.0f;
+    env->observations[obs_idx++] = (float)env->town_interface.warning_phase / 2.0f;
+    
+    env->observations[obs_idx++] = (float)env->hero_stats.level / MAX_HERO_LEVEL;
+    env->observations[obs_idx++] = (float)env->hero_stats.experience / env->hero_stats.experience_to_next;
+    env->observations[obs_idx++] = (float)env->hero_stats.stat_points_available / 10.0f;
+    // FIXED SHOP SLOTS (10 slots × 4 properties = 40 observations)
+    // Zero out shop observations in rift mode to avoid confusing agent
+    for (uint32_t i = 0; i < 10; i++) {
+        if (env->current_phase == PHASE_RIFT) {
+            // Zero out all shop observations in rift mode
+            env->observations[obs_idx++] = 0.0f; // not available
+            env->observations[obs_idx++] = 0.0f; // no quality
+            env->observations[obs_idx++] = 0.0f; // no price
+            env->observations[obs_idx++] = 0.0f; // no stats
+        } else if (i < SHOP_ITEMS_COUNT) {
+            ShopItem* item = &env->shop_items[i];
+            env->observations[obs_idx++] = item->available ? 1.0f : 0.0f;
+            env->observations[obs_idx++] = (float)item->item_quality / 3.0f;
+            env->observations[obs_idx++] = (float)item->price / 1000.0f;
+            uint32_t total_stats = item->stat_bonuses[0] + item->stat_bonuses[1] + 
+                                 item->stat_bonuses[2] + item->stat_bonuses[3];
+            env->observations[obs_idx++] = (float)total_stats / 20.0f;
+        } else {
+            // Empty shop slot
+            env->observations[obs_idx++] = 0.0f; // not available
+            env->observations[obs_idx++] = 0.0f; // no quality
+            env->observations[obs_idx++] = 0.0f; // no price
+            env->observations[obs_idx++] = 0.0f; // no stats
+        }
+    }
+    
+    // FIXED EQUIPMENT SLOTS (13 slots × 4 properties = 52 observations)
+    uint32_t equipment_types[] = {
+        env->equipment.weapon_type, env->equipment.offhand_type, env->equipment.ring_left_type,
+        env->equipment.ring_right_type, env->equipment.amulet_type, env->equipment.boots_type,
+        env->equipment.gloves_type, env->equipment.helmet_type, env->equipment.shoulders_type,
+        env->equipment.armor_type, env->equipment.belt_type, env->equipment.pants_type, env->equipment.bracers_type
+    };
+    uint32_t equipment_qualities[] = {
+        env->equipment.weapon_quality, env->equipment.offhand_quality, env->equipment.ring_left_quality,
+        env->equipment.ring_right_quality, env->equipment.amulet_quality, env->equipment.boots_quality,
+        env->equipment.gloves_quality, env->equipment.helmet_quality, env->equipment.shoulders_quality,
+        env->equipment.armor_quality, env->equipment.belt_quality, env->equipment.pants_quality, env->equipment.bracers_quality
+    };
+    uint32_t equipment_levels[] = {
+        env->equipment.weapon_level, env->equipment.offhand_level, env->equipment.ring_left_level,
+        env->equipment.ring_right_level, env->equipment.amulet_level, env->equipment.boots_level,
+        env->equipment.gloves_level, env->equipment.helmet_level, env->equipment.shoulders_level,
+        env->equipment.armor_level, env->equipment.belt_level, env->equipment.pants_level, env->equipment.bracers_level
+    };
+    
+    for (uint32_t i = 0; i < 13; i++) {
+        env->observations[obs_idx++] = equipment_types[i] > 0 ? 1.0f : 0.0f; // equipped or not
+        env->observations[obs_idx++] = (float)equipment_qualities[i] / 3.0f;
+        env->observations[obs_idx++] = (float)equipment_levels[i] / 20.0f;
+        
+        // Calculate total stats for this equipment piece
+        uint32_t total_stats = 0;
+        switch (i) {
+            case 0: total_stats = env->equipment.weapon_stat_bonuses[0] + env->equipment.weapon_stat_bonuses[1] + 
+                                 env->equipment.weapon_stat_bonuses[2] + env->equipment.weapon_stat_bonuses[3]; break;
+            case 1: total_stats = env->equipment.offhand_stat_bonuses[0] + env->equipment.offhand_stat_bonuses[1] + 
+                                 env->equipment.offhand_stat_bonuses[2] + env->equipment.offhand_stat_bonuses[3]; break;
+            case 2: total_stats = env->equipment.ring_left_stat_bonuses[0] + env->equipment.ring_left_stat_bonuses[1] + 
+                                 env->equipment.ring_left_stat_bonuses[2] + env->equipment.ring_left_stat_bonuses[3]; break;
+            case 3: total_stats = env->equipment.ring_right_stat_bonuses[0] + env->equipment.ring_right_stat_bonuses[1] + 
+                                 env->equipment.ring_right_stat_bonuses[2] + env->equipment.ring_right_stat_bonuses[3]; break;
+            case 4: total_stats = env->equipment.amulet_stat_bonuses[0] + env->equipment.amulet_stat_bonuses[1] + 
+                                 env->equipment.amulet_stat_bonuses[2] + env->equipment.amulet_stat_bonuses[3]; break;
+            case 5: total_stats = env->equipment.boots_stat_bonuses[0] + env->equipment.boots_stat_bonuses[1] + 
+                                 env->equipment.boots_stat_bonuses[2] + env->equipment.boots_stat_bonuses[3]; break;
+            case 6: total_stats = env->equipment.gloves_stat_bonuses[0] + env->equipment.gloves_stat_bonuses[1] + 
+                                 env->equipment.gloves_stat_bonuses[2] + env->equipment.gloves_stat_bonuses[3]; break;
+            case 7: total_stats = env->equipment.helmet_stat_bonuses[0] + env->equipment.helmet_stat_bonuses[1] + 
+                                 env->equipment.helmet_stat_bonuses[2] + env->equipment.helmet_stat_bonuses[3]; break;
+            case 8: total_stats = env->equipment.shoulders_stat_bonuses[0] + env->equipment.shoulders_stat_bonuses[1] + 
+                                 env->equipment.shoulders_stat_bonuses[2] + env->equipment.shoulders_stat_bonuses[3]; break;
+            case 9: total_stats = env->equipment.armor_stat_bonuses[0] + env->equipment.armor_stat_bonuses[1] + 
+                                 env->equipment.armor_stat_bonuses[2] + env->equipment.armor_stat_bonuses[3]; break;
+            case 10: total_stats = env->equipment.belt_stat_bonuses[0] + env->equipment.belt_stat_bonuses[1] + 
+                                  env->equipment.belt_stat_bonuses[2] + env->equipment.belt_stat_bonuses[3]; break;
+            case 11: total_stats = env->equipment.pants_stat_bonuses[0] + env->equipment.pants_stat_bonuses[1] + 
+                                  env->equipment.pants_stat_bonuses[2] + env->equipment.pants_stat_bonuses[3]; break;
+            case 12: total_stats = env->equipment.bracers_stat_bonuses[0] + env->equipment.bracers_stat_bonuses[1] + 
+                                  env->equipment.bracers_stat_bonuses[2] + env->equipment.bracers_stat_bonuses[3]; break;
+        }
+        env->observations[obs_idx++] = (float)total_stats / 20.0f;
+    }
+    
+    // TOWN INTERFACE DATA (8 observations)  
+    env->observations[obs_idx++] = (float)env->hero_stats.total_strength / 50.0f;
+    env->observations[obs_idx++] = (float)env->hero_stats.total_dexterity / 50.0f;
+    env->observations[obs_idx++] = (float)env->hero_stats.total_intelligence / 50.0f;
+    env->observations[obs_idx++] = (float)env->hero_stats.total_vitality / 50.0f;
+    env->observations[obs_idx++] = (float)env->current_rift_level / 20.0f;
+    
+    uint32_t inventory_items = 0;
+    for (uint32_t i = 0; i < INVENTORY_SLOTS; i++) {
+        if (env->player.inventory[i].item_type != EQUIPMENT_NONE) {
+            inventory_items++;
+        }
+    }
+    env->observations[obs_idx++] = (float)inventory_items / INVENTORY_SLOTS;
+    env->observations[obs_idx++] = (float)env->player.selected_inventory_slot / INVENTORY_SLOTS;
+    env->observations[obs_idx++] = (float)env->town_interface.current_tab / 1.0f; // Shop vs Character tab
 }
 
 // ============================================================================
@@ -1158,7 +1513,6 @@ static void add_log(Rift* env) {
     env->log.episode_length += env->episode_length;
     env->log.monsters_killed += env->episode_monsters_killed;
     env->log.boss_kills += env->episode_boss_kills;
-    env->log.items_collected += env->episode_items_collected;
     env->log.gold_earned += env->episode_gold_earned;
     env->log.damage_dealt += env->episode_damage_dealt;
     env->log.damage_taken += env->episode_damage_taken;
@@ -1168,36 +1522,970 @@ static void add_log(Rift* env) {
     env->log.deaths += env->episode_deaths;
     env->log.completion_rewards += env->episode_completion_rewards;
     env->log.monster_kill_rewards += env->episode_monster_kill_rewards;
-    env->log.item_pickup_rewards += env->episode_item_pickup_rewards;
     env->log.death_penalties += env->episode_death_penalties;
+    env->log.hero_level += env->hero_stats.level;
+    env->log.total_experience += env->hero_stats.experience;
+    env->log.shop_purchases += env->episode_shop_purchases;
+    env->log.town_time_efficiency += (float)env->episode_town_time_used / TOWN_MODE_TIME_LIMIT;
+    
+    // Current state snapshots for tracking training progress
+    env->log.current_gold = env->player.gold;
+    env->log.total_strength = env->hero_stats.total_strength;
+    env->log.total_dexterity = env->hero_stats.total_dexterity;
+    env->log.total_intelligence = env->hero_stats.total_intelligence;
+    env->log.total_vitality = env->hero_stats.total_vitality;
+    
     env->log.n += 1;
 }
 
+// ============================================================================
+// RIFT PROGRESSION SCALING FUNCTIONS
+// ============================================================================
 
-void c_reset(Rift* env) {
+// Monster stat scaling based on rift level
+float GetScaledMonsterHealth(float base_health, uint32_t rift_level) {
+    return base_health * powf(RIFT_MONSTER_HEALTH_BASE_MULTIPLIER, rift_level - 1);
+}
+
+float GetScaledMonsterDamage(float base_damage, uint32_t rift_level) {
+    return base_damage * powf(RIFT_MONSTER_DAMAGE_BASE_MULTIPLIER, rift_level - 1);
+}
+
+float GetScaledMonsterSpeed(float base_speed, uint32_t rift_level) {
+    return base_speed * powf(RIFT_MONSTER_SPEED_BASE_MULTIPLIER, rift_level - 1);
+}
+
+// Gold reward scaling
+int GetRiftCompletionGold(uint32_t rift_level) {
+    return (int)(RIFT_GOLD_REWARD_BASE * powf(RIFT_GOLD_SCALING_MULTIPLIER, rift_level - 1));
+}
+
+// Item quality chances based on rift tier
+void GetQualityChances(uint32_t rift_level, int* common, int* rare, int* epic, int* legendary) {
+    if (rift_level <= RIFT_TIER_1_MAX) {
+        // Tier 1: Learning phase
+        *common = TIER_1_COMMON_CHANCE;
+        *rare = TIER_1_RARE_CHANCE;
+        *epic = TIER_1_EPIC_CHANCE;
+        *legendary = TIER_1_LEGENDARY_CHANCE;
+    } else if (rift_level <= RIFT_TIER_2_MAX) {
+        // Tier 2: Progression phase
+        *common = TIER_2_COMMON_CHANCE;
+        *rare = TIER_2_RARE_CHANCE;
+        *epic = TIER_2_EPIC_CHANCE;
+        *legendary = TIER_2_LEGENDARY_CHANCE;
+    } else if (rift_level <= RIFT_TIER_3_MAX) {
+        // Tier 3: Advanced phase
+        *common = TIER_3_COMMON_CHANCE;
+        *rare = TIER_3_RARE_CHANCE;
+        *epic = TIER_3_EPIC_CHANCE;
+        *legendary = TIER_3_LEGENDARY_CHANCE;
+    } else {
+        // End game phase
+        *common = ENDGAME_COMMON_CHANCE;
+        *rare = ENDGAME_RARE_CHANCE;
+        *epic = ENDGAME_EPIC_CHANCE;
+        *legendary = ENDGAME_LEGENDARY_CHANCE;
+    }
+}
+
+// Item level scaling with variation
+int GetScaledItemLevel(uint32_t rift_level) {
+    int base_ilvl = (int)(rift_level * RIFT_ILVL_BASE_MULTIPLIER);
+    // Add random variation: ±RIFT_ILVL_RANDOM_RANGE
+    int variation = (rand() % (2 * RIFT_ILVL_RANDOM_RANGE + 1)) - RIFT_ILVL_RANDOM_RANGE;
+    return base_ilvl + variation;
+}
+
+// Item price scaling based on rift level and quality
+int GetScaledItemPrice(int base_price, uint32_t rift_level, uint32_t quality) {
+    float quality_multipliers[] = QUALITY_PRICE_MULTIPLIERS;
+    float rift_multiplier = powf(RIFT_PRICE_BASE_MULTIPLIER, rift_level - 1);
+    return (int)(base_price * rift_multiplier * quality_multipliers[quality]);
+}
+
+// ============================================================================
+// TOWN MODE FUNCTIONS
+// ============================================================================
+
+void init_hero_stats(Rift* env) {
+    env->hero_stats.level = 1;
+    env->hero_stats.experience = 0;
+    env->hero_stats.experience_to_next = 100;
+    env->hero_stats.stat_points_available = 0;
+    
+    env->hero_stats.strength = 10;
+    env->hero_stats.dexterity = 10;
+    env->hero_stats.intelligence = 10;
+    env->hero_stats.vitality = 10;
+    
+    // EPIC Starting Equipment - Give hero basic ilvl 1 gear!
+    env->equipment.weapon_type = EQUIPMENT_WEAPON;
+    env->equipment.weapon_quality = QUALITY_COMMON;
+    env->equipment.weapon_level = 1;
+    env->equipment.weapon_stat_bonuses[0] = 2; // +2 STR
+    env->equipment.weapon_stat_bonuses[1] = 0;
+    env->equipment.weapon_stat_bonuses[2] = 0;
+    env->equipment.weapon_stat_bonuses[3] = 0;
+    
+    env->equipment.offhand_type = EQUIPMENT_OFFHAND;
+    env->equipment.offhand_quality = QUALITY_COMMON;
+    env->equipment.offhand_level = 1;
+    env->equipment.offhand_stat_bonuses[0] = 0;
+    env->equipment.offhand_stat_bonuses[1] = 0;
+    env->equipment.offhand_stat_bonuses[2] = 0;
+    env->equipment.offhand_stat_bonuses[3] = 1; // +1 VIT
+    
+    env->equipment.ring_left_type = EQUIPMENT_RING_LEFT;
+    env->equipment.ring_left_quality = QUALITY_COMMON;
+    env->equipment.ring_left_level = 1;
+    env->equipment.ring_left_stat_bonuses[0] = 1; // +1 STR
+    env->equipment.ring_left_stat_bonuses[1] = 0;
+    env->equipment.ring_left_stat_bonuses[2] = 0;
+    env->equipment.ring_left_stat_bonuses[3] = 0;
+    
+    env->equipment.ring_right_type = EQUIPMENT_RING_RIGHT;
+    env->equipment.ring_right_quality = QUALITY_COMMON;
+    env->equipment.ring_right_level = 1;
+    env->equipment.ring_right_stat_bonuses[0] = 0;
+    env->equipment.ring_right_stat_bonuses[1] = 0;
+    env->equipment.ring_right_stat_bonuses[2] = 1; // +1 INT
+    env->equipment.ring_right_stat_bonuses[3] = 0;
+    
+    env->equipment.amulet_type = EQUIPMENT_AMULET;
+    env->equipment.amulet_quality = QUALITY_COMMON;
+    env->equipment.amulet_level = 1;
+    env->equipment.amulet_stat_bonuses[0] = 0;
+    env->equipment.amulet_stat_bonuses[1] = 1; // +1 DEX
+    env->equipment.amulet_stat_bonuses[2] = 0;
+    env->equipment.amulet_stat_bonuses[3] = 0;
+    
+    env->equipment.boots_type = EQUIPMENT_BOOTS;
+    env->equipment.boots_quality = QUALITY_COMMON;
+    env->equipment.boots_level = 1;
+    env->equipment.boots_stat_bonuses[0] = 0;
+    env->equipment.boots_stat_bonuses[1] = 0;
+    env->equipment.boots_stat_bonuses[2] = 0;
+    env->equipment.boots_stat_bonuses[3] = 1; // +1 VIT
+    
+    env->equipment.gloves_type = EQUIPMENT_GLOVES;
+    env->equipment.gloves_quality = QUALITY_COMMON;
+    env->equipment.gloves_level = 1;
+    env->equipment.gloves_stat_bonuses[0] = 0;
+    env->equipment.gloves_stat_bonuses[1] = 1; // +1 DEX
+    env->equipment.gloves_stat_bonuses[2] = 0;
+    env->equipment.gloves_stat_bonuses[3] = 0;
+    
+    env->equipment.helmet_type = EQUIPMENT_HELMET;
+    env->equipment.helmet_quality = QUALITY_COMMON;
+    env->equipment.helmet_level = 1;
+    env->equipment.helmet_stat_bonuses[0] = 1; // +1 STR
+    env->equipment.helmet_stat_bonuses[1] = 0;
+    env->equipment.helmet_stat_bonuses[2] = 0;
+    env->equipment.helmet_stat_bonuses[3] = 0;
+    
+    env->equipment.shoulders_type = EQUIPMENT_SHOULDERS;
+    env->equipment.shoulders_quality = QUALITY_COMMON;
+    env->equipment.shoulders_level = 1;
+    env->equipment.shoulders_stat_bonuses[0] = 1; // +1 STR
+    env->equipment.shoulders_stat_bonuses[1] = 0;
+    env->equipment.shoulders_stat_bonuses[2] = 0;
+    env->equipment.shoulders_stat_bonuses[3] = 0;
+    
+    env->equipment.armor_type = EQUIPMENT_ARMOR;
+    env->equipment.armor_quality = QUALITY_COMMON;
+    env->equipment.armor_level = 1;
+    env->equipment.armor_stat_bonuses[0] = 0;
+    env->equipment.armor_stat_bonuses[1] = 0;
+    env->equipment.armor_stat_bonuses[2] = 0;
+    env->equipment.armor_stat_bonuses[3] = 2; // +2 VIT
+    
+    env->equipment.belt_type = EQUIPMENT_BELT;
+    env->equipment.belt_quality = QUALITY_COMMON;
+    env->equipment.belt_level = 1;
+    env->equipment.belt_stat_bonuses[0] = 0;
+    env->equipment.belt_stat_bonuses[1] = 0;
+    env->equipment.belt_stat_bonuses[2] = 0;
+    env->equipment.belt_stat_bonuses[3] = 1; // +1 VIT
+    
+    env->equipment.pants_type = EQUIPMENT_PANTS;
+    env->equipment.pants_quality = QUALITY_COMMON;
+    env->equipment.pants_level = 1;
+    env->equipment.pants_stat_bonuses[0] = 0;
+    env->equipment.pants_stat_bonuses[1] = 1; // +1 DEX
+    env->equipment.pants_stat_bonuses[2] = 0;
+    env->equipment.pants_stat_bonuses[3] = 0;
+    
+    env->equipment.bracers_type = EQUIPMENT_BRACERS;
+    env->equipment.bracers_quality = QUALITY_COMMON;
+    env->equipment.bracers_level = 1;
+    env->equipment.bracers_stat_bonuses[0] = 0;
+    env->equipment.bracers_stat_bonuses[1] = 1; // +1 DEX
+    env->equipment.bracers_stat_bonuses[2] = 0;
+    env->equipment.bracers_stat_bonuses[3] = 0;
+    
+    calculate_total_stats(env);
+    
+    memset(env->shop_items, 0, sizeof(env->shop_items));
+    
+    env->town_interface.frames_remaining = TOWN_MODE_TIME_LIMIT;
+    env->town_interface.warning_phase = 0;
+    env->town_interface.current_tab = TOWN_TAB_CHARACTER;
+    env->town_interface.character_mode = CHARACTER_MODE_EQUIPMENT;
+    env->town_interface.selected_item_index = 0;
+    env->town_interface.equipment_slot = 0;
+    env->town_interface.input_cooldown = 0;
+    env->town_interface.shop_scroll_offset = 0;
+}
+
+void give_stat_based_rewards(Rift* env, uint32_t old_str, uint32_t old_dex, uint32_t old_int, uint32_t old_vit, uint32_t old_total_ilvl) {
+    // Calculate stat differences
+    int str_diff = env->hero_stats.total_strength - old_str;
+    int dex_diff = env->hero_stats.total_dexterity - old_dex;  
+    int int_diff = env->hero_stats.total_intelligence - old_int;
+    int vit_diff = env->hero_stats.total_vitality - old_vit;
+    
+    // Calculate total ilvl from all equipment
+    uint32_t current_total_ilvl = env->equipment.weapon_level + env->equipment.offhand_level + 
+                                env->equipment.ring_left_level + env->equipment.ring_right_level +
+                                env->equipment.amulet_level + env->equipment.boots_level +
+                                env->equipment.gloves_level + env->equipment.helmet_level +
+                                env->equipment.shoulders_level + env->equipment.armor_level +
+                                env->equipment.belt_level + env->equipment.pants_level + env->equipment.bracers_level;
+    
+    int ilvl_diff = current_total_ilvl - old_total_ilvl;
+    
+    // Give rewards for stat increases, penalties for decreases
+    float stat_reward = (str_diff + dex_diff + int_diff + vit_diff) * 
+                       (str_diff + dex_diff + int_diff + vit_diff >= 0 ? TOWN_STAT_INCREASE_REWARD : TOWN_STAT_DECREASE_PENALTY);
+    
+    // Give rewards for ilvl increases, penalties for decreases  
+    float ilvl_reward = ilvl_diff * (ilvl_diff >= 0 ? TOWN_ILVL_INCREASE_REWARD : TOWN_ILVL_DECREASE_PENALTY);
+    
+    env->step_reward += stat_reward + ilvl_reward;
+    env->episode_return += stat_reward + ilvl_reward;
+}
+
+void calculate_total_stats(Rift* env) {
+    env->hero_stats.total_strength = env->hero_stats.strength + 
+                                    env->equipment.weapon_stat_bonuses[0] + 
+                                    env->equipment.offhand_stat_bonuses[0] + 
+                                    env->equipment.ring_left_stat_bonuses[0] + 
+                                    env->equipment.ring_right_stat_bonuses[0] + 
+                                    env->equipment.amulet_stat_bonuses[0] + 
+                                    env->equipment.boots_stat_bonuses[0] + 
+                                    env->equipment.gloves_stat_bonuses[0] + 
+                                    env->equipment.helmet_stat_bonuses[0] + 
+                                    env->equipment.shoulders_stat_bonuses[0] + 
+                                    env->equipment.armor_stat_bonuses[0] + 
+                                    env->equipment.belt_stat_bonuses[0] + 
+                                    env->equipment.pants_stat_bonuses[0] + 
+                                    env->equipment.bracers_stat_bonuses[0];
+    
+    env->hero_stats.total_dexterity = env->hero_stats.dexterity + 
+                                     env->equipment.weapon_stat_bonuses[1] + 
+                                     env->equipment.offhand_stat_bonuses[1] + 
+                                     env->equipment.ring_left_stat_bonuses[1] + 
+                                     env->equipment.ring_right_stat_bonuses[1] + 
+                                     env->equipment.amulet_stat_bonuses[1] + 
+                                     env->equipment.boots_stat_bonuses[1] + 
+                                     env->equipment.gloves_stat_bonuses[1] + 
+                                     env->equipment.helmet_stat_bonuses[1] + 
+                                     env->equipment.shoulders_stat_bonuses[1] + 
+                                     env->equipment.armor_stat_bonuses[1] + 
+                                     env->equipment.belt_stat_bonuses[1] + 
+                                     env->equipment.pants_stat_bonuses[1] + 
+                                     env->equipment.bracers_stat_bonuses[1];
+    
+    env->hero_stats.total_intelligence = env->hero_stats.intelligence + 
+                                        env->equipment.weapon_stat_bonuses[2] + 
+                                        env->equipment.offhand_stat_bonuses[2] + 
+                                        env->equipment.ring_left_stat_bonuses[2] + 
+                                        env->equipment.ring_right_stat_bonuses[2] + 
+                                        env->equipment.amulet_stat_bonuses[2] + 
+                                        env->equipment.boots_stat_bonuses[2] + 
+                                        env->equipment.gloves_stat_bonuses[2] + 
+                                        env->equipment.helmet_stat_bonuses[2] + 
+                                        env->equipment.shoulders_stat_bonuses[2] + 
+                                        env->equipment.armor_stat_bonuses[2] + 
+                                        env->equipment.belt_stat_bonuses[2] + 
+                                        env->equipment.pants_stat_bonuses[2] + 
+                                        env->equipment.bracers_stat_bonuses[2];
+    
+    env->hero_stats.total_vitality = env->hero_stats.vitality + 
+                                    env->equipment.weapon_stat_bonuses[3] + 
+                                    env->equipment.offhand_stat_bonuses[3] + 
+                                    env->equipment.ring_left_stat_bonuses[3] + 
+                                    env->equipment.ring_right_stat_bonuses[3] + 
+                                    env->equipment.amulet_stat_bonuses[3] + 
+                                    env->equipment.boots_stat_bonuses[3] + 
+                                    env->equipment.gloves_stat_bonuses[3] + 
+                                    env->equipment.helmet_stat_bonuses[3] + 
+                                    env->equipment.shoulders_stat_bonuses[3] + 
+                                    env->equipment.armor_stat_bonuses[3] + 
+                                    env->equipment.belt_stat_bonuses[3] + 
+                                    env->equipment.pants_stat_bonuses[3] + 
+                                    env->equipment.bracers_stat_bonuses[3];
+    
+    env->player.max_health = PLAYER_MAX_HEALTH + (env->hero_stats.total_vitality * 5);
+    env->player.max_mana = PLAYER_MAX_MANA + (env->hero_stats.total_intelligence * 2);
+    env->player.damage = PLAYER_BASE_DAMAGE + (env->hero_stats.total_strength * 2);
+}
+
+void add_experience(Rift* env, uint16_t exp) {
+    env->hero_stats.experience += exp;
+    
+    while (env->hero_stats.experience >= env->hero_stats.experience_to_next && 
+           env->hero_stats.level < MAX_HERO_LEVEL) {
+        level_up_hero(env);
+    }
+}
+
+void level_up_hero(Rift* env) {
+    env->hero_stats.experience -= env->hero_stats.experience_to_next;
+    env->hero_stats.level++;
+    env->hero_stats.stat_points_available += STAT_POINTS_PER_LEVEL;
+    env->hero_stats.experience_to_next = env->hero_stats.level * 50 + 50;
+}
+
+void generate_shop_inventory(Rift* env) {
+    uint32_t rift_level = env->current_rift_level;
+    
+    for (uint32_t i = 0; i < SHOP_ITEMS_COUNT; i++) {
+        ShopItem* item = &env->shop_items[i];
+        
+        // Generate all equipment types (1-13, excluding EQUIPMENT_NONE=0 and EQUIPMENT_CONSUMABLE=14)
+        item->item_type = (rand() % 13) + 1; // All equipment types from SHOULDERS(1) to OFFHAND(13)
+        
+        // RIFT-BASED Quality Generation with tier progression
+        int common_chance, rare_chance, epic_chance, legendary_chance;
+        GetQualityChances(rift_level, &common_chance, &rare_chance, &epic_chance, &legendary_chance);
+        
+        uint32_t quality_roll = rand() % 100;
+        if (quality_roll < legendary_chance) {
+            item->item_quality = QUALITY_LEGENDARY;
+        } else if (quality_roll < legendary_chance + epic_chance) {
+            item->item_quality = QUALITY_EPIC;
+        } else if (quality_roll < legendary_chance + epic_chance + rare_chance) {
+            item->item_quality = QUALITY_RARE;
+        } else {
+            item->item_quality = QUALITY_COMMON;
+        }
+        
+        // RIFT-BASED Item Level Generation
+        item->item_level = GetScaledItemLevel(rift_level);
+        if (item->item_level < 1) item->item_level = 1;
+        if (item->item_level > 50) item->item_level = 50; // Higher cap for rift progression
+        
+        // EPIC Stat Generation - Quality affects stat potency
+        uint32_t stat_multiplier = 1 + item->item_quality; // Common: 1x, Rare: 2x, Epic: 3x, Legendary: 4x
+        uint32_t base_stat_budget = item->item_level * stat_multiplier; // Remove division by 2 for better stats
+        
+        // Distribute stats with some randomness
+        for (uint32_t j = 0; j < 4; j++) {
+            item->stat_bonuses[j] = 0;
+        }
+        
+        // Ensure minimum stat budget for all items
+        if (base_stat_budget < 1) base_stat_budget = 1;
+        
+        uint32_t remaining_budget = base_stat_budget;
+        
+        // Allocate stats more evenly
+        while (remaining_budget > 0) {
+            uint32_t stat_index = rand() % 4;
+            uint32_t allocation_amount = 1 + (rand() % 3); // 1-3 points per allocation
+            if (allocation_amount > remaining_budget) allocation_amount = remaining_budget;
+            
+            item->stat_bonuses[stat_index] += allocation_amount;
+            remaining_budget -= allocation_amount;
+        }
+        
+        // RIFT-BASED Pricing with scaling
+        uint16_t base_price = 50 + (item->item_level * 10);
+        uint32_t total_stats = item->stat_bonuses[0] + item->stat_bonuses[1] + 
+                             item->stat_bonuses[2] + item->stat_bonuses[3];
+        
+        item->price = GetScaledItemPrice(base_price, rift_level, item->item_quality) + (total_stats * 5);
+        
+        item->available = 1;
+    }
+}
+
+uint32_t is_at_shop_item(Rift* env, uint32_t shop_slot) {
+    if (shop_slot >= SHOP_ITEMS_COUNT) return 0;
+    
+    float shop_positions[SHOP_ITEMS_COUNT][2] = {
+        {22, 17}, {28, 17}, {22, 21}, {28, 21}
+    };
+    
+    float dist = distance(env->player.x, env->player.y, 
+                         shop_positions[shop_slot][0], shop_positions[shop_slot][1]);
+    return dist <= 1.5f;
+}
+
+uint32_t is_at_inventory_area(Rift* env) {
+    float dist = distance(env->player.x, env->player.y, INVENTORY_AREA_X, INVENTORY_AREA_Y);
+    return dist <= 3.0f;
+}
+
+uint32_t is_at_vendor(Rift* env) {
+    float dist = distance(env->player.x, env->player.y, VENDOR_POSITION_X, VENDOR_POSITION_Y);
+    return dist <= 2.0f;
+}
+
+uint32_t is_at_rift_portal(Rift* env) {
+    float dist = distance(env->player.x, env->player.y, RIFT_PORTAL_X, RIFT_PORTAL_Y);
+    return dist <= 2.0f;
+}
+
+void buy_shop_item(Rift* env, uint32_t shop_slot) {
+    if (shop_slot >= SHOP_ITEMS_COUNT) {
+        return;
+    }
+    
+    if (!env->shop_items[shop_slot].available) {
+        return;
+    }
+    
+    if (env->player.gold < env->shop_items[shop_slot].price) {
+        return;
+    }
+    
+    // Store old stats for reward calculation
+    uint32_t old_str = env->hero_stats.total_strength;
+    uint32_t old_dex = env->hero_stats.total_dexterity; 
+    uint32_t old_int = env->hero_stats.total_intelligence;
+    uint32_t old_vit = env->hero_stats.total_vitality;
+    
+    uint32_t old_total_ilvl = env->equipment.weapon_level + env->equipment.offhand_level + 
+                            env->equipment.ring_left_level + env->equipment.ring_right_level +
+                            env->equipment.amulet_level + env->equipment.boots_level +
+                            env->equipment.gloves_level + env->equipment.helmet_level +
+                            env->equipment.shoulders_level + env->equipment.armor_level +
+                            env->equipment.belt_level + env->equipment.pants_level + env->equipment.bracers_level;
+    
+    // Auto-equip item directly and delete old equipment
+    ShopItem* shop_item = &env->shop_items[shop_slot];
+    
+    
+    // Equip the item directly based on type (old equipment is overwritten/deleted)
+    switch (shop_item->item_type) {
+        case EQUIPMENT_WEAPON:
+            env->equipment.weapon_type = shop_item->item_type;
+            env->equipment.weapon_quality = shop_item->item_quality;
+            env->equipment.weapon_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.weapon_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_OFFHAND:
+            env->equipment.offhand_type = shop_item->item_type;
+            env->equipment.offhand_quality = shop_item->item_quality;
+            env->equipment.offhand_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.offhand_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_RING_LEFT:
+            env->equipment.ring_left_type = shop_item->item_type;
+            env->equipment.ring_left_quality = shop_item->item_quality;
+            env->equipment.ring_left_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.ring_left_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_RING_RIGHT:
+            env->equipment.ring_right_type = shop_item->item_type;
+            env->equipment.ring_right_quality = shop_item->item_quality;
+            env->equipment.ring_right_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.ring_right_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_AMULET:
+            env->equipment.amulet_type = shop_item->item_type;
+            env->equipment.amulet_quality = shop_item->item_quality;
+            env->equipment.amulet_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.amulet_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_BOOTS:
+            env->equipment.boots_type = shop_item->item_type;
+            env->equipment.boots_quality = shop_item->item_quality;
+            env->equipment.boots_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.boots_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_GLOVES:
+            env->equipment.gloves_type = shop_item->item_type;
+            env->equipment.gloves_quality = shop_item->item_quality;
+            env->equipment.gloves_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.gloves_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_HELMET:
+            env->equipment.helmet_type = shop_item->item_type;
+            env->equipment.helmet_quality = shop_item->item_quality;
+            env->equipment.helmet_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.helmet_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_SHOULDERS:
+            env->equipment.shoulders_type = shop_item->item_type;
+            env->equipment.shoulders_quality = shop_item->item_quality;
+            env->equipment.shoulders_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.shoulders_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_ARMOR:
+            env->equipment.armor_type = shop_item->item_type;
+            env->equipment.armor_quality = shop_item->item_quality;
+            env->equipment.armor_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.armor_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_BELT:
+            env->equipment.belt_type = shop_item->item_type;
+            env->equipment.belt_quality = shop_item->item_quality;
+            env->equipment.belt_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.belt_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_PANTS:
+            env->equipment.pants_type = shop_item->item_type;
+            env->equipment.pants_quality = shop_item->item_quality;
+            env->equipment.pants_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.pants_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        case EQUIPMENT_BRACERS:
+            env->equipment.bracers_type = shop_item->item_type;
+            env->equipment.bracers_quality = shop_item->item_quality;
+            env->equipment.bracers_level = shop_item->item_level;
+            for (uint32_t j = 0; j < 4; j++) {
+                env->equipment.bracers_stat_bonuses[j] = shop_item->stat_bonuses[j];
+            }
+            break;
+        default:
+            break;
+    }
+    
+    env->player.gold -= shop_item->price;
+    shop_item->available = 0;
+    
+    // Recalculate total stats after equipping new item
+    calculate_total_stats(env);
+    
+    // Give stat-based rewards for the purchase outcome
+    give_stat_based_rewards(env, old_str, old_dex, old_int, old_vit, old_total_ilvl);
+    
+    env->episode_vendor_transactions++;
+    env->episode_shop_purchases++;
+    
+}
+
+void equip_item_from_inventory(Rift* env, uint32_t slot) {
+    if (slot >= INVENTORY_SLOTS) return;
+    if (env->player.inventory[slot].item_type == EQUIPMENT_NONE) return;
+    
+    InventorySlot* item = &env->player.inventory[slot];
+    
+    if (item->item_type == EQUIPMENT_WEAPON) {
+        env->equipment.weapon_type = item->item_type;
+        env->equipment.weapon_quality = item->item_quality;
+        env->equipment.weapon_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.weapon_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_OFFHAND) {
+        env->equipment.offhand_type = item->item_type;
+        env->equipment.offhand_quality = item->item_quality;
+        env->equipment.offhand_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.offhand_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_RING_LEFT) {
+        env->equipment.ring_left_type = item->item_type;
+        env->equipment.ring_left_quality = item->item_quality;
+        env->equipment.ring_left_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.ring_left_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_RING_RIGHT) {
+        env->equipment.ring_right_type = item->item_type;
+        env->equipment.ring_right_quality = item->item_quality;
+        env->equipment.ring_right_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.ring_right_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_AMULET) {
+        env->equipment.amulet_type = item->item_type;
+        env->equipment.amulet_quality = item->item_quality;
+        env->equipment.amulet_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.amulet_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_HELMET) {
+        env->equipment.helmet_type = item->item_type;
+        env->equipment.helmet_quality = item->item_quality;
+        env->equipment.helmet_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.helmet_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_BOOTS) {
+        env->equipment.boots_type = item->item_type;
+        env->equipment.boots_quality = item->item_quality;
+        env->equipment.boots_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.boots_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_GLOVES) {
+        env->equipment.gloves_type = item->item_type;
+        env->equipment.gloves_quality = item->item_quality;
+        env->equipment.gloves_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.gloves_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_SHOULDERS) {
+        env->equipment.shoulders_type = item->item_type;
+        env->equipment.shoulders_quality = item->item_quality;
+        env->equipment.shoulders_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.shoulders_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_ARMOR) {
+        env->equipment.armor_type = item->item_type;
+        env->equipment.armor_quality = item->item_quality;
+        env->equipment.armor_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.armor_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_BELT) {
+        env->equipment.belt_type = item->item_type;
+        env->equipment.belt_quality = item->item_quality;
+        env->equipment.belt_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.belt_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_PANTS) {
+        env->equipment.pants_type = item->item_type;
+        env->equipment.pants_quality = item->item_quality;
+        env->equipment.pants_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.pants_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    } else if (item->item_type == EQUIPMENT_BRACERS) {
+        env->equipment.bracers_type = item->item_type;
+        env->equipment.bracers_quality = item->item_quality;
+        env->equipment.bracers_level = item->item_level;
+        for (uint32_t i = 0; i < 4; i++) {
+            env->equipment.bracers_stat_bonuses[i] = item->stat_bonuses[i];
+        }
+    }
+    
+    memset(item, 0, sizeof(InventorySlot));
+    calculate_total_stats(env);
+    
+}
+
+void handle_shop_interaction(Rift* env) {
+    for (uint32_t i = 0; i < SHOP_ITEMS_COUNT; i++) {
+        if (is_at_shop_item(env, i)) {
+            buy_shop_item(env, i);
+            return;
+        }
+    }
+}
+
+void handle_inventory_interaction(Rift* env) {
+    if (is_at_inventory_area(env)) {
+        env->player.selected_inventory_slot = (env->player.selected_inventory_slot + 1) % INVENTORY_SLOTS;
+        
+        if (env->player.inventory[env->player.selected_inventory_slot].item_type != EQUIPMENT_NONE) {
+            equip_item_from_inventory(env, env->player.selected_inventory_slot);
+        }
+    }
+}
+
+void transition_to_town(Rift* env) {
+    env->current_phase = PHASE_TOWN;
+    generate_shop_inventory(env);
+    
+    env->town_interface.frames_remaining = TOWN_MODE_TIME_LIMIT;
+    env->town_interface.warning_phase = 0;
+    env->town_interface.current_tab = TOWN_TAB_CHARACTER;
+    env->town_interface.character_mode = CHARACTER_MODE_EQUIPMENT;
+    env->town_interface.selected_item_index = 0;
+    env->town_interface.equipment_slot = 0;
+    env->town_interface.input_cooldown = 0;
+    env->town_interface.shop_scroll_offset = 0;
+    
+    add_experience(env, EXP_PER_RIFT_COMPLETION);
+}
+
+void transition_to_rift(Rift* env) {
+    #if TOWN_TESTING_MODE
+        // AUTO-COMPLETE RIFT INSTANTLY FOR TOWN TRAINING WITH PROGRESSION
+        env->current_phase = PHASE_TOWN; // Stay in town
+        
+        // RIFT PROGRESSION: Increment rift level and give scaled rewards
+        env->current_rift_level++;
+        
+        // Give scaled gold rewards based on new rift level
+        int rift_gold = GetRiftCompletionGold(env->current_rift_level);
+        env->player.gold += rift_gold;
+        env->episode_gold_earned += rift_gold;
+        
+        // Give scaled experience
+        int rift_exp = TOWN_TEST_AUTO_EXP + (env->current_rift_level * 25); // More exp for higher rifts
+        add_experience(env, rift_exp);
+        
+        // Mark rift as completed for stats
+        env->episode_rift_completions++;
+        env->step_reward += env->config.completion_reward;
+        env->episode_return += env->config.completion_reward;
+        env->episode_completion_rewards += env->config.completion_reward;
+        
+        // Add rift progression reward (learning incentive)
+        float progression_reward = env->current_rift_level * 2.0f; // +2 reward per rift level
+        env->step_reward += progression_reward;
+        env->episode_return += progression_reward;
+        
+        // Generate new scaled shop inventory based on new rift level
+        generate_shop_inventory(env);
+        
+        // Reset town timer
+        env->town_interface.frames_remaining = TOWN_MODE_TIME_LIMIT;
+        env->town_interface.warning_phase = 0;
+        
+        return; // Don't actually enter rift
+    #endif
+    
     env->current_phase = PHASE_RIFT;
     generate_rift_map(env);
     
     env->player.x = MAP_WIDTH / 2;
     env->player.y = MAP_HEIGHT / 2;
+    
+    env->monsters_spawned = 0;
+    env->monsters_killed = 0;
+    env->boss_spawned = 0;
+    env->rift_completed = 0;
+    
+    memset(env->monsters, 0, sizeof(env->monsters));
+    memset(&env->boss, 0, sizeof(Boss));
+    memset(env->items, 0, sizeof(env->items));
+    memset(env->projectiles, 0, sizeof(env->projectiles));
+    memset(env->blizzard_areas, 0, sizeof(env->blizzard_areas));
+}
+
+void update_town_timer(Rift* env) {
+    if (env->current_phase != PHASE_TOWN) return;
+    
+    // Update input cooldown
+    if (env->town_interface.input_cooldown > 0) {
+        env->town_interface.input_cooldown--;
+    }
+    
+    env->town_interface.frames_remaining--;
+    env->episode_town_time_used = TOWN_MODE_TIME_LIMIT - env->town_interface.frames_remaining;
+    
+    if (env->town_interface.frames_remaining <= TOWN_TIMER_WARNING_2) {
+        env->town_interface.warning_phase = 2;
+    } else if (env->town_interface.frames_remaining <= TOWN_TIMER_WARNING_1) {
+        env->town_interface.warning_phase = 1;
+    }
+    
+    if (env->town_interface.frames_remaining <= 0) {
+        transition_to_rift(env);
+    }
+}
+
+void handle_town_navigation(Rift* env, int action) {
+    // EPIC Input Cooldown System - Prevent rapid navigation spam
+    if (env->town_interface.input_cooldown > 0) {
+        return; // Still in cooldown, ignore input
+    }
+    
+    switch (action) {
+        case ACTION_MOVE_LEFT:
+            if (env->town_interface.current_tab == TOWN_TAB_SHOP) {
+                env->town_interface.current_tab = TOWN_TAB_CHARACTER;
+                env->town_interface.character_mode = CHARACTER_MODE_EQUIPMENT; // Always show equipment
+                env->town_interface.selected_item_index = 0;
+                env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
+            } else {
+            }
+            break;
+        case ACTION_MOVE_RIGHT:
+            if (env->town_interface.current_tab == TOWN_TAB_CHARACTER) {
+                env->town_interface.current_tab = TOWN_TAB_SHOP;
+                env->town_interface.shop_scroll_offset = 0; // Reset scroll when entering shop
+                
+                // Find first available shop item
+                int first_available = 0;
+                while (first_available < SHOP_ITEMS_COUNT && !env->shop_items[first_available].available) {
+                    first_available++;
+                }
+                
+                // Set to first available item, or 0 if none available
+                env->town_interface.selected_item_index = (first_available < SHOP_ITEMS_COUNT) ? first_available : 0;
+                env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
+                
+            } else {
+            }
+            break;
+        case ACTION_MOVE_UP:
+            if (env->town_interface.current_tab == TOWN_TAB_CHARACTER && env->town_interface.character_mode == CHARACTER_MODE_EQUIPMENT) {
+                // Sequential navigation up through 13 equipment slots
+                if (env->town_interface.selected_item_index > 0) {
+                    env->town_interface.selected_item_index--;
+                } else {
+                    env->town_interface.selected_item_index = 12; // Wrap to last slot
+                }
+            } else if (env->town_interface.current_tab == TOWN_TAB_SHOP) {
+                // Shop navigation: only go to available items
+                int current_idx = env->town_interface.selected_item_index;
+                int new_idx = current_idx - 1;
+                
+                // Find previous available item
+                while (new_idx >= 0 && !env->shop_items[new_idx].available) {
+                    new_idx--;
+                }
+                
+                // If no available item found above, wrap to last available item
+                if (new_idx < 0) {
+                    new_idx = SHOP_ITEMS_COUNT - 1;
+                    while (new_idx >= 0 && !env->shop_items[new_idx].available) {
+                        new_idx--;
+                    }
+                }
+                
+                // Only update if we found an available item
+                if (new_idx >= 0 && env->shop_items[new_idx].available) {
+                    env->town_interface.selected_item_index = new_idx;
+                }
+            } else {
+                // Standard up navigation for other modes
+                if (env->town_interface.selected_item_index > 0) {
+                    env->town_interface.selected_item_index--;
+                }
+            }
+            env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
+            break;
+        case ACTION_MOVE_DOWN:
+            if (env->town_interface.current_tab == TOWN_TAB_CHARACTER && env->town_interface.character_mode == CHARACTER_MODE_EQUIPMENT) {
+                // Sequential navigation down through 13 equipment slots
+                if (env->town_interface.selected_item_index < 12) {
+                    env->town_interface.selected_item_index++;
+                } else {
+                    env->town_interface.selected_item_index = 0; // Wrap to first slot
+                }
+            } else if (env->town_interface.current_tab == TOWN_TAB_SHOP) {
+                // Shop navigation: only go to available items
+                int current_idx = env->town_interface.selected_item_index;
+                int new_idx = current_idx + 1;
+                
+                // Find next available item
+                while (new_idx < SHOP_ITEMS_COUNT && !env->shop_items[new_idx].available) {
+                    new_idx++;
+                }
+                
+                // If no available item found below, wrap to first available item
+                if (new_idx >= SHOP_ITEMS_COUNT) {
+                    new_idx = 0;
+                    while (new_idx < SHOP_ITEMS_COUNT && !env->shop_items[new_idx].available) {
+                        new_idx++;
+                    }
+                }
+                
+                // Only update if we found an available item
+                if (new_idx < SHOP_ITEMS_COUNT && env->shop_items[new_idx].available) {
+                    env->town_interface.selected_item_index = new_idx;
+                }
+            } else {
+                // Standard down navigation for other modes
+                env->town_interface.selected_item_index++;
+                
+                if (env->town_interface.current_tab == TOWN_TAB_CHARACTER) {
+                    if (env->town_interface.selected_item_index >= INVENTORY_SLOTS) env->town_interface.selected_item_index = INVENTORY_SLOTS - 1;
+                }
+            }
+            env->town_interface.input_cooldown = TOWN_INPUT_COOLDOWN;
+            break;
+    }
+}
+
+void handle_town_interaction(Rift* env) {
+    
+    if (env->town_interface.current_tab == TOWN_TAB_CHARACTER) {
+        // Character equipment tab is display-only, F key does nothing
+        // This prevents accidentally switching to inventory mode
+        return;
+    } else if (env->town_interface.current_tab == TOWN_TAB_SHOP) {
+        uint32_t shop_slot = env->town_interface.selected_item_index;
+        if (shop_slot < SHOP_ITEMS_COUNT) {
+            buy_shop_item(env, shop_slot);
+        } else {
+        }
+    }
+}
+
+
+void c_reset(Rift* env) {
+    // ALWAYS reset hero stats and equipment on episode reset (new game)
+    init_hero_stats(env);
+    
+    // Reset rift progression to level 1
+    env->current_rift_level = 1;
+    
+    // Start based on testing mode
+    #if TOWN_TESTING_MODE
+        env->current_phase = PHASE_TOWN;
+        generate_town_map(env);
+        generate_shop_inventory(env);
+    #else
+        env->current_phase = PHASE_RIFT;
+        generate_rift_map(env);
+    #endif
+    
+    #if TOWN_TESTING_MODE
+        env->player.x = 15;  // Town starting position
+        env->player.y = 19;
+    #else
+        env->player.x = MAP_WIDTH / 2;   // Center of rift map
+        env->player.y = MAP_HEIGHT / 2;
+    #endif
+    
+    env->town_interface.frames_remaining = TOWN_MODE_TIME_LIMIT;
+    env->town_interface.warning_phase = 0;
     env->player.prev_x = env->player.x;
     env->player.prev_y = env->player.y;
     env->player.movement_x = 0.0f;
     env->player.movement_y = 0.0f;
-    env->player.health = env->config.player_start_health;
-    env->player.max_health = env->config.player_start_health;
-    env->player.mana = env->config.player_start_mana;
-    env->player.max_mana = env->config.player_start_mana;
+    env->player.health = env->player.max_health;
+    env->player.mana = env->player.max_mana;
     env->player.gold = env->config.starting_gold;
-    env->player.damage = PLAYER_BASE_DAMAGE;
     env->player.alive = 1;
     env->player.blizzard_cooldown = 0;
     env->player.health_potion_cooldown = 0;
     env->player.mana_potion_cooldown = 0;
     env->player.mana_regen_timer = 0;
+    env->player.low_health_penalty_cooldown = 0;
     env->player.inventory_count = 0;
+    env->player.selected_inventory_slot = 0;
     env->player.facing_x = 0.0f;
     env->player.facing_y = -1.0f;
+    memset(env->player.old_inventory, 0, sizeof(env->player.old_inventory));
     memset(env->player.inventory, 0, sizeof(env->player.inventory));
     
     memset(env->monsters, 0, sizeof(env->monsters));
@@ -1223,13 +2511,13 @@ void c_reset(Rift* env) {
     env->episode_return = 0.0f;
     env->step_reward = 0.0f;
     env->rift_completed = 0;
+    env->human_mode = 0;              // Start in AI mode
     
     env->rewards[0] = 0.0f;
     env->terminals[0] = 0;
     
     env->episode_monsters_killed = 0;
     env->episode_boss_kills = 0;
-    env->episode_items_collected = 0;
     env->episode_gold_earned = 0;
     env->episode_damage_dealt = 0;
     env->episode_damage_taken = 0;
@@ -1239,8 +2527,10 @@ void c_reset(Rift* env) {
     env->episode_deaths = 0;
     env->episode_completion_rewards = 0.0f;
     env->episode_monster_kill_rewards = 0.0f;
-    env->episode_item_pickup_rewards = 0.0f;
     env->episode_death_penalties = 0.0f;
+    
+    env->episode_shop_purchases = 0;
+    env->episode_town_time_used = 0;
     
     compute_observations(env);
 }
@@ -1311,17 +2601,18 @@ void c_step(Rift* env) {
         if (env->boss.alive) {
             float dist = distance(env->player.x, env->player.y, env->boss.x, env->boss.y);
             if (dist <= 2.0f && env->boss.attack_cooldown == 0) {
-                env->player.health -= env->boss.damage;
                 env->episode_damage_taken += env->boss.damage;
                 env->boss.attack_cooldown = 15;
                 
-                if (env->player.health <= 0) {
-                    env->player.alive = 0;
+                if (env->boss.damage >= env->player.health) {
                     env->player.health = 0;
+                    env->player.alive = 0;
                     env->step_reward += env->config.death_penalty;
                     env->episode_return += env->config.death_penalty;
                     env->episode_death_penalties += env->config.death_penalty;
                     env->episode_deaths++;
+                } else {
+                    env->player.health -= env->boss.damage;
                 }
             }
             if (env->boss.attack_cooldown > 0) {
@@ -1336,15 +2627,16 @@ void c_step(Rift* env) {
             env->episode_return += env->config.completion_reward;
             env->episode_completion_rewards += env->config.completion_reward;
             
-            drop_loot(env, env->boss.x, env->boss.y);
-            drop_loot(env, env->boss.x + 1, env->boss.y);
-            drop_loot(env, env->boss.x, env->boss.y + 1);
+            // Give bonus gold for boss kill instead of dropping items
+            uint16_t boss_gold = (GOLD_DROP_MIN + rand() % GOLD_DROP_RANGE) * 3; // Triple gold for boss
+            env->player.gold += boss_gold;
+            env->episode_gold_earned += boss_gold;
             
-            env->terminals[0] = 1;
-            add_log(env);
-            c_reset(env);
+            transition_to_town(env);
             return;
         }
+    } else if (env->current_phase == PHASE_TOWN) {
+        update_town_timer(env);
     }
     
     env->episode_length++;

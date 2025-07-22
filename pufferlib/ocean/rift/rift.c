@@ -11,7 +11,13 @@
 #endif
 
 void generate_dummy_action(Rift* env) {
-    if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) {
+    // Toggle human mode with shift key press
+    if (IsKeyPressed(KEY_LEFT_SHIFT) || IsKeyPressed(KEY_RIGHT_SHIFT)) {
+        env->human_mode = !env->human_mode;
+        printf("SHIFT TOGGLE: Human mode %s\n", env->human_mode ? "ON" : "OFF");
+    }
+    
+    if (env->human_mode) {
         bool w = IsKeyDown(KEY_W);
         bool s = IsKeyDown(KEY_S);
         bool a = IsKeyDown(KEY_A);
@@ -61,11 +67,13 @@ void generate_dummy_action(Rift* env) {
             env->actions[0] = ACTION_USE_MANA_POTION;
         } else if (IsKeyDown(KEY_F)) {
             env->actions[0] = ACTION_INTERACT;
+        } else if (IsKeyDown(KEY_Z)) {
+            env->actions[0] = ACTION_EXIT_TOWN;
         } else {
             env->actions[0] = ACTION_NOOP;
         }
     } else {
-        env->actions[0] = rand() % 21;
+        env->actions[0] = rand() % 22;
     }
 }
 
