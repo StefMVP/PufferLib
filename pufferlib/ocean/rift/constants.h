@@ -144,7 +144,7 @@
 #define SPAWN_CHECK_DISTANCE 8.0f
 
 // Episode and observation
-#define MAX_EPISODE_LENGTH 3125
+#define MAX_EPISODE_LENGTH 6000
 #define GRID_SIZE 10
 #define GRID_OBS_SIZE (GRID_SIZE * GRID_SIZE)
 #define PLAYER_OBS_SIZE 17
@@ -356,9 +356,10 @@
 // ============================================================================
 
 // Easy-to-tune scaling factors for game balance
-#define RIFT_MONSTER_HEALTH_BASE_MULTIPLIER 1.25f    // Health scales by 25% per rift level
-#define RIFT_MONSTER_DAMAGE_BASE_MULTIPLIER 1.20f    // Damage scales by 20% per rift level
-#define RIFT_MONSTER_SPEED_BASE_MULTIPLIER 1.05f     // Speed scales by 5% per rift level (subtle)
+#define RIFT_MONSTER_HEALTH_BASE_MULTIPLIER 1.50f    // Health scales by 50% per rift level
+#define RIFT_MONSTER_DAMAGE_BASE_MULTIPLIER 1.35f    // Damage scales by 35% per rift level
+#define RIFT_MONSTER_SPEED_BASE_MULTIPLIER 1.08f     // Speed scales by 8% per rift level
+#define RIFT_MONSTER_ATTACK_SPEED_MULTIPLIER 0.92f   // Attack cooldown reduces by 8% per rift level (faster attacks)
 
 #define RIFT_GOLD_REWARD_BASE 50                     // Base gold for completing Rift 1  
 #define RIFT_GOLD_SCALING_MULTIPLIER 1.05f           // Gold scales by 5% per rift level (much more reasonable)
