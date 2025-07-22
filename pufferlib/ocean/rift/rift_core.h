@@ -2,6 +2,7 @@
 #define RIFT_CORE_H
 
 static void add_log(Rift* env);
+void compute_observations(Rift* env);
 void init_hero_stats(Rift* env);
 void generate_rift_map(Rift* env);
 void generate_town_map(Rift* env);

@@ -13,6 +13,8 @@ typedef struct SpriteSystem SpriteSystem;
 typedef struct Rift Rift;
 typedef struct Client Client;
 
+void load_sprites(SpriteSystem* sprites);
+
 typedef struct {
     int width, height;
     int x, y;

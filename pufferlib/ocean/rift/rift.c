@@ -83,7 +83,7 @@ int main() {
 
     Rift *env = calloc(1, sizeof(Rift));
     
-    uint16_t max_obs_size = OBS_SIZE;
+    uint16_t max_obs_size = OBSERVATION.obs_size;
     env->observations = (float*)calloc(max_obs_size, sizeof(float));
     env->actions = (float*)calloc(1, sizeof(float));
     env->rewards = (float*)calloc(1, sizeof(float));

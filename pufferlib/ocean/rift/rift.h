@@ -433,6 +433,7 @@ float GetScaledMonsterDamage(float base_damage, uint32_t rift_level);
 float GetScaledMonsterSpeed(float base_speed, uint32_t rift_level);
 uint32_t GetScaledAttackCooldown(uint32_t base_cooldown, uint32_t rift_level);
 
+
 void compute_observations(Rift* env);
 
 void c_close_client(Client* client);

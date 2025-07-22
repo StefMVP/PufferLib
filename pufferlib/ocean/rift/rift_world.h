@@ -5,6 +5,7 @@ float GetScaledMonsterHealth(float base_health, uint32_t rift_level);
 float GetScaledMonsterDamage(float base_damage, uint32_t rift_level);
 float GetScaledMonsterSpeed(float base_speed, uint32_t rift_level);
 uint32_t GetScaledAttackCooldown(uint32_t base_cooldown, uint32_t rift_level);
+void handle_blizzard(Rift* env);
 void execute_monster_attack(Rift* env, Monster* monster);
 void spawn_boss(Rift* env);
 void add_experience(Rift* env, uint16_t exp);
@@ -507,6 +508,7 @@ float GetScaledMonsterDamage(float base_damage, uint32_t rift_level) {
 float GetScaledMonsterSpeed(float base_speed, uint32_t rift_level) {
     return base_speed * powf(RIFT_MONSTER_SPEED_BASE_MULTIPLIER, rift_level - 1);
 }
+
 
 int GetRiftCompletionGold(uint32_t rift_level) {
     return (int)(RIFT_GOLD_REWARD_BASE * powf(RIFT_GOLD_SCALING_MULTIPLIER, rift_level - 1));

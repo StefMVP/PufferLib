@@ -3,7 +3,8 @@
 
 #include "render_core.h"
 
-
+void render_character_tab(Rift* env);
+void render_shop_tab(Rift* env);
 
 static inline void DrawItem(int16_t x, int16_t y, uint8_t size, Color color, uint8_t equipment_type);
 
