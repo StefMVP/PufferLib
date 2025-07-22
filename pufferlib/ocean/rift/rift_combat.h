@@ -13,7 +13,7 @@ void spawn_boss(Rift* env) {
     env->boss.special_attack_cooldown = 0;
     env->boss_spawned = 1;
     
-    for (uint16_t i = 0; i < MAX_MONSTERS; i++) {
+    for (uint16_t i = 0; i < MONSTER.max_count; i++) {
         env->monsters[i].alive = 0;
     }
 }
@@ -241,7 +241,7 @@ void update_blizzard_areas(Rift* env) {
             if (area->damage_timer >= BLIZZARD_DAMAGE_INTERVAL) {
                 area->damage_timer = 0;
                 
-                for (uint16_t j = 0; j < MAX_MONSTERS; j++) {
+                for (uint16_t j = 0; j < MONSTER.max_count; j++) {
                     if (env->monsters[j].alive) {
                         float dist_sq = distance_squared(area->x, area->y, 
                                                         env->monsters[j].x, env->monsters[j].y);
@@ -259,7 +259,7 @@ void update_blizzard_areas(Rift* env) {
                                 add_experience(env, EXP_PER_MONSTER_KILL);
                                 
                                 if ((float)rand() / RAND_MAX < env->config.item_drop_rate) {
-                                    uint16_t gold_amount = GOLD_DROP_MIN + rand() % GOLD_DROP_RANGE;
+                                    uint16_t gold_amount = VENDOR.drop_min + rand() % VENDOR.drop_range;
                                     env->player.gold += gold_amount;
                                     env->episode_gold_earned += gold_amount;
                                 }

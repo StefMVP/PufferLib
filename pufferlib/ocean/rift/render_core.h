@@ -199,18 +199,6 @@ typedef struct {
     int base_damage, max_health, max_mana;
 } PlayerStats;
 
-typedef struct {
-    int damage, health;
-    float range, speed;
-} MonsterTypeStats;
-
-typedef struct {
-    int max_count, attack_cooldown, movement_cooldown;
-    int base_damage, base_health;
-    float detection_range;
-    int wander_chance, wander_cooldown;
-    MonsterTypeStats zombie, mage, heavy_melee, light, elite;
-} MonsterConfig;
 
 typedef struct {
     int health_cooldown, health_heal;
@@ -224,21 +212,6 @@ static const PlayerStats PLAYER_CONFIG = {
     .max_mana = 50
 };
 
-static const MonsterConfig MONSTER_CONFIG = {
-    .max_count = 200,
-    .attack_cooldown = 30,
-    .movement_cooldown = 5,
-    .base_damage = 5,
-    .base_health = 15,
-    .detection_range = 8.0f,
-    .wander_chance = 20,
-    .wander_cooldown = 10,
-    .zombie = {5, 15, 1.0f, 0.3f},
-    .mage = {8, 10, 6.0f, 0.3f},
-    .heavy_melee = {15, 15, 1.5f, 0.2f},
-    .light = {3, 8, 2.0f, 0.8f},
-    .elite = {20, 15, 4.0f, 0.4f}
-};
 
 static const ItemConfig ITEM_CONFIG = {
     .health_cooldown = 80,
@@ -353,11 +326,11 @@ static inline Color fade_color(Color color, uint8_t alpha) {
 
 static inline Color GetQualityColor(uint32_t quality) {
     switch (quality) {
-        case QUALITY_COMMON: return MATERIAL_COLORS.common_gray;
-        case QUALITY_RARE: return MATERIAL_COLORS.rare_blue;
-        case QUALITY_EPIC: return MATERIAL_COLORS.epic_purple;
-        case QUALITY_LEGENDARY: return MATERIAL_COLORS.legendary_orange;
-        default: return (Color){64, 64, 64, 255};
+        case QUALITY_COMMON: return (Color){QUALITY_COLORS.common_gray, QUALITY_COLORS.common_gray, QUALITY_COLORS.common_gray, 255};
+        case QUALITY_RARE: return (Color){QUALITY_COLORS.rare_blue_r, QUALITY_COLORS.rare_blue_g, QUALITY_COLORS.rare_blue_b, 255};
+        case QUALITY_EPIC: return (Color){QUALITY_COLORS.epic_purple_r, QUALITY_COLORS.epic_purple_g, QUALITY_COLORS.epic_purple_b, 255};
+        case QUALITY_LEGENDARY: return (Color){QUALITY_COLORS.legendary_orange_r, QUALITY_COLORS.legendary_orange_g, QUALITY_COLORS.legendary_orange_b, 255};
+        default: return (Color){QUALITY_COLORS.default_dark, QUALITY_COLORS.default_dark, QUALITY_COLORS.default_dark, 255};
     }
 }
 
@@ -367,7 +340,7 @@ static inline void draw_gradient_rect(int x, int y, int width, int height, Color
 
 static inline void draw_gem(int x, int y, int size, Color color) {
     DrawCircle(x, y, size, color);
-    DrawCircle(x, y, size - 2, (Color){COLOR_WHITE, COLOR_WHITE, COLOR_WHITE, COLOR_WHITE_TRANSLUCENT});
+    DrawCircle(x, y, size - 2, (Color){QUALITY_COLORS.white, QUALITY_COLORS.white, QUALITY_COLORS.white, QUALITY_COLORS.white_alpha});
 }
 
 static inline void draw_shadow(float x, float y, float radius, int offset, int alpha) {
@@ -381,7 +354,7 @@ static inline void draw_health_bar(int x, int y, int width, int height, float he
 }
 
 static inline float calculate_glow(int tick, float speed, float offset) {
-    return GLOW_BASE + GLOW_AMPLITUDE * sinf(tick * speed + offset);
+    return GLOW_EFFECT.base + GLOW_EFFECT.amplitude * sinf(tick * speed + offset);
 }
 
 static inline float calculate_pulse(int tick, float speed, float base, float amplitude) {
@@ -399,23 +372,21 @@ static inline void draw_sprite_tile(Texture2D texture, uint32_t tile_id, float d
 }
 
 static inline float get_monster_size_multiplier(uint32_t monster_type) {
-    switch (monster_type) {
-        case MONSTER_MAGE: return MAGE_SIZE_MULT;
-        case MONSTER_HEAVY_MELEE: return HEAVY_SIZE_MULT;
-        case MONSTER_LIGHT: return LIGHT_SIZE_MULT;
-        case MONSTER_ELITE: return ELITE_SIZE_MULT;
-        default: return 1.0f;
-    }
+    if (monster_type == MONSTERS.mage) return 0.9f;
+    if (monster_type == MONSTERS.heavy_melee) return 1.2f;
+    if (monster_type == MONSTERS.light) return 0.8f;
+    if (monster_type == MONSTERS.elite) return 1.1f;
+    return 1.0f;
 }
 
 static inline Color get_monster_color(uint32_t monster_type) {
     switch (monster_type) {
-        case MONSTER_ZOMBIE: return RIFT_COLORS.zombie;
-        case MONSTER_MAGE: return RIFT_COLORS.mage;
-        case MONSTER_HEAVY_MELEE: return RIFT_COLORS.heavy_melee;
-        case MONSTER_LIGHT: return RIFT_COLORS.light;
-        case MONSTER_ELITE: return RIFT_COLORS.elite;
-        default: return RIFT_COLORS.maroon_default;
+        case MONSTER_ZOMBIE: return (Color){MONSTER_COLORS.zombie_r, MONSTER_COLORS.zombie_g, MONSTER_COLORS.zombie_b, 255};
+        case MONSTER_MAGE: return (Color){MONSTER_COLORS.zombie_r, MONSTER_COLORS.zombie_g, MONSTER_COLORS.zombie_b, 255};
+        case MONSTER_HEAVY_MELEE: return (Color){MONSTER_COLORS.heavy_r, MONSTER_COLORS.heavy_g, MONSTER_COLORS.heavy_b, 255};
+        case MONSTER_LIGHT: return (Color){MONSTER_COLORS.light_r, MONSTER_COLORS.light_g, MONSTER_COLORS.light_b, 255};
+        case MONSTER_ELITE: return (Color){MONSTER_COLORS.elite_r, MONSTER_COLORS.elite_g, MONSTER_COLORS.elite_b, 255};
+        default: return (Color){MONSTER_COLORS.maroon_r, 0, 0, 255};
     }
 }
 
@@ -444,13 +415,13 @@ static inline void draw_simple_monster(Vector2 pos, float size, uint32_t monster
     float radius = size * 0.25f * size_mult;
     float inner_radius = size * 0.167f * size_mult;
     
-    draw_shadow(pos.x, pos.y, radius, 1, SHADOW_ALPHA);
+    draw_shadow(pos.x, pos.y, radius, 1, SHADOW_RENDER.alpha);
     DrawCircle(pos.x, pos.y, radius, color);
     DrawCircle(pos.x, pos.y, inner_radius, (Color){255, 0, 0, 150});
     
-    if (monster_type == MONSTER_ELITE) {
-        float glow = calculate_glow(tick, GLOW_SPEED, 0.0f);
-        DrawCircleLines(pos.x, pos.y, size * 0.33f * size_mult * glow, (Color){255, 255, 255, GLOW_ALPHA});
+    if (monster_type == MONSTERS.elite) {
+        float glow = calculate_glow(tick, GLOW_EFFECT.speed, 0.0f);
+        DrawCircleLines(pos.x, pos.y, size * 0.33f * size_mult * glow, (Color){255, 255, 255, GLOW_EFFECT.alpha});
     }
 }
 
@@ -460,7 +431,7 @@ static inline void draw_simple_boss(Vector2 pos, float size, int tick) {
     
     draw_shadow(pos.x, pos.y, radius, BOSS_RENDER.shadow_offset, BOSS_RENDER.shadow_alpha);
     
-    float pulse = calculate_pulse(tick, GLOW_SPEED, BOSS_RENDER.pulse_base, BOSS_RENDER.pulse_amplitude);
+    float pulse = calculate_pulse(tick, GLOW_EFFECT.speed, BOSS_EFFECT.pulse_base, BOSS_EFFECT.pulse_amplitude);
     DrawCircle(pos.x, pos.y, radius * pulse, RIFT_COLORS.armor);
     DrawCircle(pos.x, pos.y, inner_radius, RIFT_COLORS.player);
     DrawCircle(pos.x, pos.y, size / 6.0f, (Color){255, 255, 255, BOSS_RENDER.core_alpha});
@@ -714,7 +685,7 @@ static Client* make_client(Rift* env) {
     InitWindow(client->width, client->height, "PufferLib Rift");
     SetTargetFPS(CLIENT_FPS);
     
-    client->camera.target = (Vector2){MAP_WIDTH * client->cell_size / 2, MAP_HEIGHT * client->cell_size / 2};
+    client->camera.target = (Vector2){MAP.width * client->cell_size / 2, MAP.height * client->cell_size / 2};
     client->camera.offset = (Vector2){client->width >> 1, client->height >> 1};
     client->camera.rotation = 0;
     client->camera.zoom = 1.0f;
@@ -938,32 +909,32 @@ void unload_sprites(SpriteSystem* sprites) {
 }
 
 void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
-    uint16_t ui_bottom = screen_height - UI_HEIGHT;
+    uint16_t ui_bottom = screen_height - UI_RENDER.height;
     float time = GetTime();
     float pulse = sinf(time * 2.0f) * 0.2f + 0.8f;
     
     Color ui_top = {15, 20, 35, 250};
     Color ui_bot = {5, 10, 20, 250};
-    DrawRectangleGradientV(0, ui_bottom, screen_width, UI_HEIGHT, ui_top, ui_bot);
+    DrawRectangleGradientV(0, ui_bottom, screen_width, UI_RENDER.height, ui_top, ui_bot);
     
     DrawRectangle(0, ui_bottom - 3, screen_width, 3, (Color){100, 120, 150, 200});
     DrawRectangle(0, ui_bottom - 2, screen_width, 2, (Color){150, 180, 220, 150});
     DrawRectangle(0, ui_bottom - 1, screen_width, 1, (Color){200, 220, 255, 100});
     
     float health_ratio = (float)env->player.health / env->player.max_health;
-    uint16_t health_globe_x = GLOBE_RADIUS + GLOBE_MARGIN + 10;
-    uint16_t health_globe_y = screen_height - GLOBE_RADIUS - GLOBE_MARGIN;
+    uint16_t health_globe_x = GLOBE_UI.radius + GLOBE_UI.margin + 10;
+    uint16_t health_globe_y = screen_height - GLOBE_UI.radius - GLOBE_UI.margin;
     
     Color health_glow = {255, 50, 50, (uint32_t)(80 * pulse)};
-    DrawCircle(health_globe_x, health_globe_y, GLOBE_RADIUS + 8, health_glow);
-    DrawCircle(health_globe_x, health_globe_y, GLOBE_RADIUS + 5, (Color){100, 20, 20, 150});
+    DrawCircle(health_globe_x, health_globe_y, GLOBE_UI.radius + 8, health_glow);
+    DrawCircle(health_globe_x, health_globe_y, GLOBE_UI.radius + 5, (Color){100, 20, 20, 150});
     
-    DrawCircle(health_globe_x, health_globe_y, GLOBE_RADIUS, (Color){60, 15, 15, 255});
+    DrawCircle(health_globe_x, health_globe_y, GLOBE_UI.radius, (Color){60, 15, 15, 255});
     
     if (health_ratio > 0) {
-        uint16_t fill_height = (uint16_t)(GLOBE_RADIUS * 2 * health_ratio);
-        uint16_t fill_y = health_globe_y + GLOBE_RADIUS - fill_height;
-        uint16_t globe_radius_sq = GLOBE_RADIUS * GLOBE_RADIUS;
+        uint16_t fill_height = (uint16_t)(GLOBE_UI.radius * 2 * health_ratio);
+        uint16_t fill_y = health_globe_y + GLOBE_UI.radius - fill_height;
+        uint16_t globe_radius_sq = GLOBE_UI.radius * GLOBE_UI.radius;
         
         for (uint16_t y = 0; y < fill_height; y++) {
             uint16_t current_y = fill_y + y;
@@ -978,25 +949,25 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
         }
     }
     
-    DrawCircleLines(health_globe_x, health_globe_y, GLOBE_RADIUS, (Color){255, 100, 100, 255});
-    DrawCircleLines(health_globe_x, health_globe_y, GLOBE_RADIUS + 1, (Color){255, 150, 150, 150});
+    DrawCircleLines(health_globe_x, health_globe_y, GLOBE_UI.radius, (Color){255, 100, 100, 255});
+    DrawCircleLines(health_globe_x, health_globe_y, GLOBE_UI.radius + 1, (Color){255, 150, 150, 150});
     DrawText("HP", health_globe_x - 10, health_globe_y - 25, 12, (Color){255, 100, 100, 255});
-    DrawText(TextFormat("%d", env->player.health), health_globe_x - 15, health_globe_y - 8, TEXT_SIZE_16, WHITE);
+    DrawText(TextFormat("%d", env->player.health), health_globe_x - 15, health_globe_y - 8, TEXT_SIZES.size_16, WHITE);
     
     float mana_ratio = (float)env->player.mana / env->player.max_mana;
-    uint16_t mana_globe_x = screen_width - GLOBE_RADIUS - GLOBE_MARGIN - 10;
-    uint16_t mana_globe_y = screen_height - GLOBE_RADIUS - GLOBE_MARGIN;
+    uint16_t mana_globe_x = screen_width - GLOBE_UI.radius - GLOBE_UI.margin - 10;
+    uint16_t mana_globe_y = screen_height - GLOBE_UI.radius - GLOBE_UI.margin;
     
     Color mana_glow = {50, 100, 255, (uint32_t)(80 * pulse)};
-    DrawCircle(mana_globe_x, mana_globe_y, GLOBE_RADIUS + 8, mana_glow);
-    DrawCircle(mana_globe_x, mana_globe_y, GLOBE_RADIUS + 5, (Color){20, 40, 100, 150});
+    DrawCircle(mana_globe_x, mana_globe_y, GLOBE_UI.radius + 8, mana_glow);
+    DrawCircle(mana_globe_x, mana_globe_y, GLOBE_UI.radius + 5, (Color){20, 40, 100, 150});
     
-    DrawCircle(mana_globe_x, mana_globe_y, GLOBE_RADIUS, (Color){15, 30, 60, 255});
+    DrawCircle(mana_globe_x, mana_globe_y, GLOBE_UI.radius, (Color){15, 30, 60, 255});
     
     if (mana_ratio > 0) {
-        uint16_t fill_height = (uint16_t)(GLOBE_RADIUS * 2 * mana_ratio);
-        uint16_t fill_y = mana_globe_y + GLOBE_RADIUS - fill_height;
-        uint16_t globe_radius_sq = GLOBE_RADIUS * GLOBE_RADIUS;
+        uint16_t fill_height = (uint16_t)(GLOBE_UI.radius * 2 * mana_ratio);
+        uint16_t fill_y = mana_globe_y + GLOBE_UI.radius - fill_height;
+        uint16_t globe_radius_sq = GLOBE_UI.radius * GLOBE_UI.radius;
         
         for (uint16_t y = 0; y < fill_height; y++) {
             uint16_t current_y = fill_y + y;
@@ -1011,10 +982,10 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
         }
     }
     
-    DrawCircleLines(mana_globe_x, mana_globe_y, GLOBE_RADIUS, (Color){100, 150, 255, 255});
-    DrawCircleLines(mana_globe_x, mana_globe_y, GLOBE_RADIUS + 1, (Color){150, 180, 255, 150});
+    DrawCircleLines(mana_globe_x, mana_globe_y, GLOBE_UI.radius, (Color){100, 150, 255, 255});
+    DrawCircleLines(mana_globe_x, mana_globe_y, GLOBE_UI.radius + 1, (Color){150, 180, 255, 150});
     DrawText("MP", mana_globe_x - 10, mana_globe_y - 25, 12, (Color){100, 150, 255, 255});
-    DrawText(TextFormat("%d", env->player.mana), mana_globe_x - 15, mana_globe_y - 8, TEXT_SIZE_16, WHITE);
+    DrawText(TextFormat("%d", env->player.mana), mana_globe_x - 15, mana_globe_y - 8, TEXT_SIZES.size_16, WHITE);
     
     uint16_t center_panel_x = health_globe_x + 80;
     uint16_t center_panel_w = mana_globe_x - center_panel_x - 80;
@@ -1022,9 +993,9 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
     
     Color center_bg_top = {30, 35, 50, 200};
     Color center_bg_bot = {15, 20, 30, 200};
-    DrawRectangleGradientV(center_panel_x, center_panel_y, center_panel_w, UI_HEIGHT - 20, center_bg_top, center_bg_bot);
-    DrawRectangleLines(center_panel_x, center_panel_y, center_panel_w, UI_HEIGHT - 20, (Color){100, 120, 150, 255});
-    DrawRectangleLines(center_panel_x - 1, center_panel_y - 1, center_panel_w + 2, UI_HEIGHT - 18, (Color){150, 180, 220, 150});
+    DrawRectangleGradientV(center_panel_x, center_panel_y, center_panel_w, UI_RENDER.height - 20, center_bg_top, center_bg_bot);
+    DrawRectangleLines(center_panel_x, center_panel_y, center_panel_w, UI_RENDER.height - 20, (Color){100, 120, 150, 255});
+    DrawRectangleLines(center_panel_x - 1, center_panel_y - 1, center_panel_w + 2, UI_RENDER.height - 18, (Color){150, 180, 220, 150});
     
     char gold_text[32];
     sprintf(gold_text, "%d Gold", env->player.gold);
@@ -1033,21 +1004,21 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
     
     int avg_ilvl = 0;
     int item_count = 0;
-    if (env->equipment.weapon_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.weapon_level; item_count++; }
-    if (env->equipment.offhand_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.offhand_level; item_count++; }
-    if (env->equipment.helmet_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.helmet_level; item_count++; }
-    if (env->equipment.armor_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.armor_level; item_count++; }
-    if (env->equipment.boots_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.boots_level; item_count++; }
-    if (env->equipment.gloves_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.gloves_level; item_count++; }
-    if (env->equipment.ring_left_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.ring_left_level; item_count++; }
-    if (env->equipment.ring_right_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.ring_right_level; item_count++; }
-    if (env->equipment.amulet_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.amulet_level; item_count++; }
-    if (env->equipment.shoulders_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.shoulders_level; item_count++; }
-    if (env->equipment.belt_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.belt_level; item_count++; }
-    if (env->equipment.pants_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.pants_level; item_count++; }
-    if (env->equipment.bracers_type != EQUIPMENT_NONE) { avg_ilvl += env->equipment.bracers_level; item_count++; }
+    if (env->equipment.weapon_type != EQUIPMENT.none) { avg_ilvl += env->equipment.weapon_level; item_count++; }
+    if (env->equipment.offhand_type != EQUIPMENT.none) { avg_ilvl += env->equipment.offhand_level; item_count++; }
+    if (env->equipment.helmet_type != EQUIPMENT.none) { avg_ilvl += env->equipment.helmet_level; item_count++; }
+    if (env->equipment.armor_type != EQUIPMENT.none) { avg_ilvl += env->equipment.armor_level; item_count++; }
+    if (env->equipment.boots_type != EQUIPMENT.none) { avg_ilvl += env->equipment.boots_level; item_count++; }
+    if (env->equipment.gloves_type != EQUIPMENT.none) { avg_ilvl += env->equipment.gloves_level; item_count++; }
+    if (env->equipment.ring_left_type != EQUIPMENT.none) { avg_ilvl += env->equipment.ring_left_level; item_count++; }
+    if (env->equipment.ring_right_type != EQUIPMENT.none) { avg_ilvl += env->equipment.ring_right_level; item_count++; }
+    if (env->equipment.amulet_type != EQUIPMENT.none) { avg_ilvl += env->equipment.amulet_level; item_count++; }
+    if (env->equipment.shoulders_type != EQUIPMENT.none) { avg_ilvl += env->equipment.shoulders_level; item_count++; }
+    if (env->equipment.belt_type != EQUIPMENT.none) { avg_ilvl += env->equipment.belt_level; item_count++; }
+    if (env->equipment.pants_type != EQUIPMENT.none) { avg_ilvl += env->equipment.pants_level; item_count++; }
+    if (env->equipment.bracers_type != EQUIPMENT.none) { avg_ilvl += env->equipment.bracers_level; item_count++; }
     
-    if (item_count > 0) avg_ilvl /= item_count;
+    if (item_count > 0) avg_ilvl = (avg_ilvl + item_count - 1) / item_count;
     
     char stats_text[128];
     sprintf(stats_text, "iLvl %d | STR %d | DEX %d | INT %d | VIT %d", 
@@ -1055,7 +1026,7 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
             env->hero_stats.total_intelligence, env->hero_stats.total_vitality);
     DrawText(stats_text, center_panel_x + 20, center_panel_y + 32, 14, (Color){200, 220, 255, 255});
     
-    if (env->current_phase == PHASE_RIFT) {
+    if (env->current_phase == PHASES.rift) {
         char rift_text[64];
         sprintf(rift_text, "Rift %d", env->current_rift_level);
         Color rift_color = {100, 255, 100, (uint32_t)(200 + 55 * pulse)};
@@ -1074,15 +1045,15 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
     Color hp_glow = {255, 100, 100, (uint32_t)(60 * pulse)};
     Color hp_color = (env->player.health_potion_cooldown > 0) ? (Color){100, 50, 50, 255} : (Color){200, 50, 50, 255};
     
-    DrawCircle(hp_x, hp_y, POTION_SIZE + 3, hp_glow);
-    DrawCircle(hp_x, hp_y, POTION_SIZE, hp_color);
-    DrawCircleLines(hp_x, hp_y, POTION_SIZE, (Color){255, 150, 150, 255});
-    DrawText("Q", hp_x - 5, hp_y - 8, TEXT_SIZE_16, WHITE);
+    DrawCircle(hp_x, hp_y, GLOBE_UI.potion_size + 3, hp_glow);
+    DrawCircle(hp_x, hp_y, GLOBE_UI.potion_size, hp_color);
+    DrawCircleLines(hp_x, hp_y, GLOBE_UI.potion_size, (Color){255, 150, 150, 255});
+    DrawText("Q", hp_x - 5, hp_y - 8, TEXT_SIZES.size_16, WHITE);
     
     if (env->player.health_potion_cooldown > 0) {
-        float cooldown_ratio = (float)env->player.health_potion_cooldown / HEALTH_POTION_COOLDOWN;
+        float cooldown_ratio = (float)env->player.health_potion_cooldown / POTIONS.health_potion_cooldown;
         Vector2 hp_center = {hp_x, hp_y};
-        DrawCircleSector(hp_center, POTION_SIZE, 0, 360 * cooldown_ratio, 32, (Color){0, 0, 0, 180});
+        DrawCircleSector(hp_center, GLOBE_UI.potion_size, 0, 360 * cooldown_ratio, 32, (Color){0, 0, 0, 180});
     }
     
     uint16_t mp_x = center_panel_x + center_panel_w - 60;
@@ -1090,15 +1061,15 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
     Color mp_glow = {100, 150, 255, (uint32_t)(60 * pulse)};
     Color mp_color = (env->player.mana_potion_cooldown > 0) ? (Color){50, 75, 100, 255} : (Color){50, 100, 200, 255};
     
-    DrawCircle(mp_x, mp_y, POTION_SIZE + 3, mp_glow);
-    DrawCircle(mp_x, mp_y, POTION_SIZE, mp_color);
-    DrawCircleLines(mp_x, mp_y, POTION_SIZE, (Color){150, 180, 255, 255});
-    DrawText("E", mp_x - 5, mp_y - 8, TEXT_SIZE_16, WHITE);
+    DrawCircle(mp_x, mp_y, GLOBE_UI.potion_size + 3, mp_glow);
+    DrawCircle(mp_x, mp_y, GLOBE_UI.potion_size, mp_color);
+    DrawCircleLines(mp_x, mp_y, GLOBE_UI.potion_size, (Color){150, 180, 255, 255});
+    DrawText("E", mp_x - 5, mp_y - 8, TEXT_SIZES.size_16, WHITE);
     
     if (env->player.mana_potion_cooldown > 0) {
-        float cooldown_ratio = (float)env->player.mana_potion_cooldown / MANA_POTION_COOLDOWN;
+        float cooldown_ratio = (float)env->player.mana_potion_cooldown / POTIONS.mana_potion_cooldown;
         Vector2 mp_center = {mp_x, mp_y};
-        DrawCircleSector(mp_center, POTION_SIZE, 0, 360 * cooldown_ratio, 32, (Color){0, 0, 0, 180});
+        DrawCircleSector(mp_center, GLOBE_UI.potion_size, 0, 360 * cooldown_ratio, 32, (Color){0, 0, 0, 180});
     }
     
     Rectangle help_icon = {5, 5, 20, 20};
@@ -1129,10 +1100,10 @@ void render_ui(Rift* env, uint16_t screen_width, uint16_t screen_height) {
     }
     
     if (!(IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))) {
-        DrawRectangleGradientV(CLIENT_WIDTH - 45, 5, 40, MANUAL_CONTROL_HEIGHT, 
+        DrawRectangleGradientV(CLIENT_WIDTH - 45, 5, 40, TOP_BOTTOM_UI.manual_control_height, 
                               (Color){40, 40, 40, 200}, (Color){20, 20, 20, 200});
-        DrawRectangleLines(CLIENT_WIDTH - 45, 5, 40, MANUAL_CONTROL_HEIGHT, (Color){100, 100, 100, 255});
-        DrawText("AI", CLIENT_WIDTH - 35, 12, TEXT_SIZE_14, (Color){150, 150, 150, 255});
+        DrawRectangleLines(CLIENT_WIDTH - 45, 5, 40, TOP_BOTTOM_UI.manual_control_height, (Color){100, 100, 100, 255});
+        DrawText("AI", CLIENT_WIDTH - 35, 12, TEXT_SIZES.size_14, (Color){150, 150, 150, 255});
     }
 }
 

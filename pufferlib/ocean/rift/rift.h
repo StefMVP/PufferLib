@@ -25,15 +25,15 @@ typedef struct GameConfig {
 // ============================================================================
 
 static const GameConfig DEFAULT_CONFIG = {
-    .max_monsters = MAX_MONSTERS,
-    .max_items = MAX_ITEMS,
+    .max_monsters = MONSTER.max_count,
+    .max_items = POTIONS.max_items,
     .monster_spawn_rate = 0.8f,
     .item_drop_rate = 0.7f,  // Increased from 0.3f for more gold drops
-    .player_start_health = PLAYER_MAX_HEALTH,
-    .player_start_mana = PLAYER_MAX_MANA,
+    .player_start_health = PLAYER.max_health,
+    .player_start_mana = PLAYER.max_mana,
     .starting_gold = 500,
     .monster_move_speed = 0.5f,
-    .episode_length_limit = MAX_EPISODE_LENGTH,
+    .episode_length_limit = OBSERVATION.max_episode_length,
     .completion_reward = 10.0f,
     .monster_kill_reward = 10.0f,
     .death_penalty = 0.0f,
@@ -53,8 +53,8 @@ typedef struct Player {
     float prev_x, prev_y;
     float movement_x, movement_y;
     float facing_x, facing_y;
-    uint32_t old_inventory[MAX_INVENTORY_SIZE];
-    InventorySlot inventory[INVENTORY_SLOTS];
+    uint32_t old_inventory[20];
+    InventorySlot inventory[12];
     uint32_t gold;
     uint32_t health, max_health;
     uint32_t mana, max_mana;
@@ -305,19 +305,19 @@ typedef struct Rift {
     float* rewards;
     unsigned char* terminals;
     
-    unsigned char map[MAP_SIZE];
+    unsigned char map[1900];
     
     Player player;
-    Monster monsters[MAX_MONSTERS];
+    Monster monsters[200];
     Boss boss;
-    Item items[MAX_ITEMS];
-    Projectile projectiles[MAX_PROJECTILES];
-    BlizzardArea blizzard_areas[MAX_BLIZZARD_AREAS];
+    Item items[100];
+    Projectile projectiles[50];
+    BlizzardArea blizzard_areas[10];
     Vendor vendor;
     
     HeroStats hero_stats;
     Equipment equipment;
-    ShopItem shop_items[SHOP_ITEMS_COUNT];
+    ShopItem shop_items[10];
     TownInterface town_interface;
     
     GameConfig config;

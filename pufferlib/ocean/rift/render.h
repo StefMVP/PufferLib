@@ -22,9 +22,9 @@ void c_render(Rift* env) {
     env->client->camera.target = player_screen;
     
     BeginDrawing();
-    ClearBackground((Color){CLEAR_BG_R, CLEAR_BG_G, CLEAR_BG_B, 255});
+    ClearBackground((Color){BACKGROUND_COLORS.clear_bg_r, BACKGROUND_COLORS.clear_bg_g, BACKGROUND_COLORS.clear_bg_b, 255});
     
-    if (env->current_phase == PHASE_RIFT) {
+    if (env->current_phase == PHASES.rift) {
         render_rift(env);
     } else {
         render_town(env);

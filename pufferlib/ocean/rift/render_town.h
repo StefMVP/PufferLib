@@ -29,7 +29,7 @@ static inline void get_equipment_slot_info(Rift* env, int slot_index, uint32_t* 
 }
 
 static void render_equipment_slot(Rift* env, int x, int y, int slot_size, EquipmentSlotConfig config, float pulse) {
-    Color quality_color = (*config.type_ptr != EQUIPMENT_NONE) ? 
+    Color quality_color = (*config.type_ptr != EQUIPMENT.none) ? 
                           GetQualityColor(*config.quality_ptr) : TOWN_COLORS.empty_slot;
     
     if ((int)env->town_interface.selected_item_index == config.index) {
@@ -42,7 +42,7 @@ static void render_equipment_slot(Rift* env, int x, int y, int slot_size, Equipm
     DrawRectangleLines(x, y, slot_size, slot_size, quality_color);
     
     SlotDisplayInfo display = EQUIPMENT_SLOT_INFO[config.index];
-    if (*config.type_ptr != EQUIPMENT_NONE) {
+    if (*config.type_ptr != EQUIPMENT.none) {
         DrawItem(x, y, slot_size, GetQualityColor(*config.quality_ptr), config.equipment_type);
     } else {
         DrawText(display.icon, x + 15, y + 10, display.icon_size, TOWN_COLORS.empty_slot);
@@ -54,7 +54,7 @@ static inline void draw_armor_plates(int x, int y, int width, int count, int sta
     for (uint8_t i = 0; i < count; i++) {
         int plate_y = y + start_y + i * spacing;
         DrawRectangle(x, plate_y, width, height, brighten_color(color, 40));
-        DrawRectangleLines(x, plate_y, width, height, (Color){COLOR_LIGHT_SILVER, COLOR_LIGHT_SILVER, COLOR_LIGHT_SILVER_STRONG, COLOR_WHITE});
+        DrawRectangleLines(x, plate_y, width, height, (Color){QUALITY_COLORS.light_silver, QUALITY_COLORS.light_silver, QUALITY_COLORS.light_silver_strong, QUALITY_COLORS.white});
     }
 }
 
@@ -77,7 +77,7 @@ void render_town(Rift* env) {
     
     float glow_pulse = get_ui_pulse(UI_ANIMATION.ui_pulse_slow_speed, UI_ANIMATION.ui_pulse_base, UI_ANIMATION.ui_pulse_amplitude);
     
-    bool shop_active = (env->town_interface.current_tab == TOWN_TAB_SHOP);
+    bool shop_active = (env->town_interface.current_tab == TOWN_TAB.shop);
     Color shop_color = shop_active ? WHITE : (Color){150, 150, 150, 255};
     DrawText("SHOP (1)", 100, 30, 20, shop_color);
     if (shop_active) {
@@ -85,7 +85,7 @@ void render_town(Rift* env) {
         DrawRectangle(98, 56, 104, 1, (Color){100, 150, 255, 150});
     }
     
-    bool char_active = (env->town_interface.current_tab == TOWN_TAB_CHARACTER);
+    bool char_active = (env->town_interface.current_tab == TOWN_TAB.character);
     Color char_color = char_active ? WHITE : (Color){150, 150, 150, 255};
     DrawText("CHARACTER (2)", 250, 30, 20, char_color);
     if (char_active) {
@@ -95,9 +95,9 @@ void render_town(Rift* env) {
     
     
     
-    if (env->town_interface.current_tab == TOWN_TAB_CHARACTER) {
+    if (env->town_interface.current_tab == TOWN_TAB.character) {
         render_character_tab(env);
-    } else if (env->town_interface.current_tab == TOWN_TAB_SHOP) {
+    } else if (env->town_interface.current_tab == TOWN_TAB.shop) {
         render_shop_tab(env);
     }
     
@@ -120,7 +120,7 @@ void render_character_tab(Rift* env) {
     int start_y = 120;
     float pulse = get_ui_pulse(UI_ANIMATION.ui_pulse_med_speed, UI_ANIMATION.ui_pulse_base + 0.1f, UI_ANIMATION.ui_pulse_amplitude - 0.1f);
     
-    if (env->town_interface.character_mode == CHARACTER_MODE_EQUIPMENT) {
+    if (env->town_interface.character_mode == CHARACTER_MODE.equipment) {
         DrawText("HERO EQUIPMENT", CONTENT_AREA_X, start_y, 24, TOWN_COLORS.quality_text);
         
         EquipmentLayout layout = EQUIPMENT_UI_LAYOUT;
@@ -142,15 +142,15 @@ void render_character_tab(Rift* env) {
         draw_stats_panel(STATS_PANEL_X, stats_panel_y, STATS_PANEL_WIDTH, stats_panel_height);
         
         uint32_t selected_slot = env->town_interface.selected_item_index;
-        uint32_t item_type = EQUIPMENT_NONE;
-        uint32_t item_quality = QUALITY_COMMON;
+        uint32_t item_type = EQUIPMENT.none;
+        uint32_t item_quality = QUALITY.common;
         uint32_t item_level = 0;
         uint32_t stat_bonuses[4] = {0, 0, 0, 0};
         const char* slot_name = "NONE";
         
         get_equipment_slot_info(env, selected_slot, &item_type, &item_quality, &item_level, stat_bonuses, &slot_name);
         
-        if (item_type != EQUIPMENT_NONE) {
+        if (item_type != EQUIPMENT.none) {
             Color quality_color = GetQualityColor(item_quality);
             DrawText(slot_name, STATS_PANEL_X + STATS_CONTENT_MARGIN_LEFT, stats_panel_y + STATS_CONTENT_MARGIN_LEFT, 14, quality_color);
             
@@ -167,9 +167,9 @@ void render_character_tab(Rift* env) {
             int icon_size = 50;
             draw_item_icon(icon_x, icon_y, icon_size, quality_color);
             
-            uint8_t slot_to_equipment[] = {EQUIPMENT_SHOULDERS, EQUIPMENT_GLOVES, EQUIPMENT_RING_LEFT, EQUIPMENT_WEAPON, 
-                                         EQUIPMENT_HELMET, EQUIPMENT_ARMOR, EQUIPMENT_BELT, EQUIPMENT_PANTS, 
-                                         EQUIPMENT_BOOTS, EQUIPMENT_AMULET, EQUIPMENT_BRACERS, EQUIPMENT_RING_RIGHT, EQUIPMENT_OFFHAND};
+            uint8_t slot_to_equipment[] = {EQUIPMENT.shoulders, EQUIPMENT.gloves, EQUIPMENT.ring_left, EQUIPMENT.weapon, 
+                                         EQUIPMENT.helmet, EQUIPMENT.armor, EQUIPMENT.belt, EQUIPMENT.pants, 
+                                         EQUIPMENT.boots, EQUIPMENT.amulet, EQUIPMENT.bracers, EQUIPMENT.ring_right, EQUIPMENT.offhand};
             if (selected_slot < 13) {
                 DrawItem(icon_x, icon_y, icon_size, quality_color, slot_to_equipment[selected_slot]);
             }
@@ -223,7 +223,7 @@ void render_character_tab(Rift* env) {
             
             draw_gradient_rect(x, y, inv_layout.slot_size, inv_layout.slot_size, slot_bg);
             
-            if (env->player.inventory[i].item_type != EQUIPMENT_NONE) {
+            if (env->player.inventory[i].item_type != EQUIPMENT.none) {
                 Color item_quality_color = GetQualityColor(env->player.inventory[i].item_quality);
                 int quality_margin = 2;
                 int quality_size = inv_layout.slot_size + 2 * quality_margin;
@@ -272,7 +272,7 @@ bool get_equipped_item_stats(Rift* env, uint32_t item_type, uint32_t* equipped_s
     
     for (int i = 0; i < 13; i++) {
         if (equipment_map[i].equipment_type == item_type) {
-            if (*(equipment_map[i].type_ptr) != EQUIPMENT_NONE) {
+            if (*(equipment_map[i].type_ptr) != EQUIPMENT.none) {
                 for (int j = 0; j < 4; j++) {
                     equipped_stat_bonuses[j] = equipment_map[i].stat_bonuses[j];
                 }
@@ -292,7 +292,7 @@ void render_shop_tab(Rift* env) {
     DrawText("SHOP", CONTENT_AREA_X, start_y, 24, TOWN_COLORS.quality_text);
     
     // Reroll button
-    uint32_t reroll_cost = SHOP_REROLL_BASE_COST * powf(SHOP_REROLL_SCALING, env->current_rift_level - 1);
+    uint32_t reroll_cost = VENDOR.reroll_base_cost * powf(VENDOR.reroll_scaling, env->current_rift_level - 1);
     char reroll_text[64];
     sprintf(reroll_text, "REROLL (R) - %d Gold", reroll_cost);
     

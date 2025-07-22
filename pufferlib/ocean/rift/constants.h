@@ -4,172 +4,210 @@
 // ============================================================================
 // ACTION CONSTANTS
 // ============================================================================
-#define ACTION_MOVE_UP 0
-#define ACTION_MOVE_DOWN 1
-#define ACTION_MOVE_LEFT 2
-#define ACTION_MOVE_RIGHT 3
-#define ACTION_MOVE_UP_LEFT 4
-#define ACTION_MOVE_UP_RIGHT 5
-#define ACTION_MOVE_DOWN_LEFT 6
-#define ACTION_MOVE_DOWN_RIGHT 7
-#define ACTION_BLIZZARD 8
-#define ACTION_USE_HEALTH_POTION 9
-#define ACTION_USE_MANA_POTION 10
-#define ACTION_INTERACT 11
-#define ACTION_NOOP 12
-#define ACTION_EXIT_TOWN 13
-#define ACTION_SWITCH_TO_SHOP 14
-#define ACTION_SWITCH_TO_CHARACTER 15
-#define ACTION_REROLL_SHOP 16
+typedef struct {
+    int move_up, move_down, move_left, move_right;
+    int move_up_left, move_up_right, move_down_left, move_down_right;
+    int blizzard, use_health_potion, use_mana_potion;
+    int interact, noop, exit_town;
+    int switch_to_shop, switch_to_character, reroll_shop;
+} ActionTypes;
+
+static const ActionTypes ACTIONS = {
+    .move_up = 0, .move_down = 1, .move_left = 2, .move_right = 3,
+    .move_up_left = 4, .move_up_right = 5, .move_down_left = 6, .move_down_right = 7,
+    .blizzard = 8, .use_health_potion = 9, .use_mana_potion = 10,
+    .interact = 11, .noop = 12, .exit_town = 13,
+    .switch_to_shop = 14, .switch_to_character = 15, .reroll_shop = 16
+};
 
 // ============================================================================
 // MAP AND CELL CONSTANTS
 // ============================================================================
-#define MAP_WIDTH 50
-#define MAP_HEIGHT 38
-#define MAP_SIZE (MAP_WIDTH * MAP_HEIGHT)
-#define MAP_BORDER_SIZE 5
+typedef struct {
+    int width, height, size, border_size;
+} MapConfig;
 
-#define CELL_EMPTY 0
-#define CELL_WALL 1
-#define CELL_FLOOR 2
-#define CELL_DOOR 3
-#define CELL_VENDOR 4
+typedef struct {
+    int empty, wall, floor, door, vendor;
+} CellTypes;
 
-// ============================================================================
-// PHASE CONSTANTS
-// ============================================================================
-#define PHASE_RIFT 0
-#define PHASE_TOWN 1
+static const MapConfig MAP = {
+    .width = 50, .height = 38, .size = 1900, .border_size = 5
+};
 
-// ============================================================================
-// MONSTER CONSTANTS
-// ============================================================================
-#define MONSTER_ZOMBIE 0
-#define MONSTER_MAGE 1
-#define MONSTER_HEAVY_MELEE 2
-#define MONSTER_LIGHT 3
-#define MONSTER_ELITE 4
+static const CellTypes CELLS = {
+    .empty = 0, .wall = 1, .floor = 2, .door = 3, .vendor = 4
+};
 
 // ============================================================================
-// BOSS CONSTANTS
+// GAME PHASE CONSTANTS
 // ============================================================================
-#define BOSS_RIFT_GUARDIAN 0
+typedef struct {
+    int rift, town;
+} PhaseTypes;
 
-// ============================================================================
-// ITEM CONSTANTS
-// ============================================================================
-#define ITEM_GOLD 0
-#define ITEM_HEALTH_POTION 1
-#define ITEM_MANA_POTION 2
+typedef struct {
+    int zombie, mage, heavy_melee, light, elite;
+} MonsterTypes;
+
+typedef struct {
+    int rift_guardian;
+} BossTypes;
+
+typedef struct {
+    int gold, health_potion, mana_potion;
+} ItemTypes;
+
+static const PhaseTypes PHASES = {
+    .rift = 0, .town = 1
+};
+
+static const MonsterTypes MONSTERS = {
+    .zombie = 0, .mage = 1, .heavy_melee = 2, .light = 3, .elite = 4
+};
+
+static const BossTypes BOSSES = {
+    .rift_guardian = 0
+};
+
+static const ItemTypes ITEMS = {
+    .gold = 0, .health_potion = 1, .mana_potion = 2
+};
 
 // ============================================================================
 // GAME MECHANICS CONSTANTS
 // ============================================================================
 
-// Blizzard mechanics
-#define BLIZZARD_ACTIVATION_COOLDOWN 20
-#define BLIZZARD_DAMAGE 15
-#define BLIZZARD_DAMAGE_INTERVAL 15
-#define BLIZZARD_DURATION 60
-#define BLIZZARD_MANA_COST 15
-#define BLIZZARD_RADIUS 2.0f
-#define MAX_BLIZZARD_AREAS 10
+typedef struct {
+    int activation_cooldown, damage, damage_interval, duration;
+    int mana_cost, max_areas;
+    float radius;
+} BlizzardConfig;
 
-// Boss mechanics
-#define BOSS_BASE_DAMAGE 15
-#define BOSS_BASE_HEALTH 100
-#define BOSS_ATTACK_RANGE 3.0f
-#define BOSS_ATTACK_COOLDOWN 45
+static const BlizzardConfig BLIZZARD = {
+    .activation_cooldown = 20, .damage = 15, .damage_interval = 15,
+    .duration = 60, .mana_cost = 15, .max_areas = 10, .radius = 2.0f
+};
 
-// Player mechanics
-#define PLAYER_BASE_DAMAGE 10
-#define PLAYER_MAX_HEALTH 100
-#define PLAYER_MAX_MANA 50
+typedef struct {
+    int base_damage, base_health, attack_cooldown;
+    float attack_range;
+} BossConfig;
 
-// Monster mechanics
-#define MAX_MONSTERS 200
-#define MONSTER_ATTACK_COOLDOWN 30
-#define MONSTER_BASE_DAMAGE 5
-#define MONSTER_BASE_HEALTH 15
-#define MONSTER_DETECTION_RANGE 8.0f
-#define MONSTER_MOVEMENT_COOLDOWN 5
-#define MONSTER_WANDER_CHANCE 20
-#define MONSTER_WANDER_COOLDOWN 10
-#define MONSTERS_TO_SPAWN ((int)(MAP_WIDTH * MAP_HEIGHT * 0.02f))
+typedef struct {
+    int base_damage, max_health, max_mana;
+} PlayerConfig;
 
-// Monster type stats
-#define ELITE_DAMAGE 20
-#define ELITE_HEALTH 15
-#define ELITE_RANGE 4.0f
-#define ELITE_SPEED 0.4f
-#define HEAVY_DAMAGE 15
-#define HEAVY_HEALTH 15
-#define HEAVY_RANGE 1.5f
-#define HEAVY_SPEED 0.2f
-#define LIGHT_DAMAGE 3
-#define LIGHT_HEALTH 8
-#define LIGHT_RANGE 2.0f
-#define LIGHT_SPEED 0.8f
-#define MAGE_DAMAGE 8
-#define MAGE_HEALTH 10
-#define MAGE_RANGE 6.0f
-#define MAGE_SPEED 0.3f
+static const BossConfig BOSS = {
+    .base_damage = 15, .base_health = 100, .attack_cooldown = 45, .attack_range = 3.0f
+};
 
-// Items and potions
-#define MAX_ITEMS 100
-#define MAX_INVENTORY_SIZE 20
-#define HEALTH_POTION_COOLDOWN 80
-#define MANA_POTION_COOLDOWN 68
-#define HEALTH_POTION_HEAL_PERCENT 0.48f
-#define MANA_POTION_RESTORE_PERCENT 0.48f
-#define MANA_REGEN_RATE 15
+static const PlayerConfig PLAYER = {
+    .base_damage = 10, .max_health = 100, .max_mana = 50
+};
 
-// Gold and vendor
-#define GOLD_DROP_MIN 15     // Increased from 5
-#define GOLD_DROP_RANGE 25   // Increased from 15
-#define VENDOR_HEALTH_POTION_PRICE 20
-#define VENDOR_MANA_POTION_PRICE 15
-#define VENDOR_STOCK_AMOUNT 10
-#define SHOP_REROLL_BASE_COST 25      // Base gold cost for shop reroll
-#define SHOP_REROLL_SCALING 1.5f      // Multiplier per rift level
+typedef struct {
+    int max_count, attack_cooldown, base_damage, base_health;
+    int movement_cooldown, wander_chance, wander_cooldown, spawn_count;
+    float detection_range;
+} MonsterConfig;
 
-// Attack types
-#define ATTACK_TYPE_MELEE 0
-#define ATTACK_TYPE_PROJECTILE 1
-#define ATTACK_TYPE_CONE_SLAM 2
-#define ATTACK_TYPE_FAST_PROJECTILE 3
-#define ATTACK_TYPE_HOMING_PROJECTILE 4
-#define ATTACK_TYPE_MELEE_PROJECTILE 5
-#define ATTACK_TYPE_BOSS_GROUND_SLAM 6
-#define ATTACK_TYPE_BOSS_CONE 7
+static const MonsterConfig MONSTER = {
+    .max_count = 200, .attack_cooldown = 30, .base_damage = 5, .base_health = 15,
+    .movement_cooldown = 5, .wander_chance = 20, .wander_cooldown = 10,
+    .spawn_count = 38, .detection_range = 8.0f
+};
 
-// Projectiles
-#define MAX_PROJECTILES 50
-#define PROJECTILE_SPEED 4.0f
-#define PROJECTILE_SPEED_FAST 6.0f
-#define PROJECTILE_SPEED_HOMING 3.0f
-#define PROJECTILE_HIT_RADIUS 1.0f
+typedef struct {
+    int damage, health;
+    float range, speed;
+} MonsterTypeStats;
 
-// Map generation
-#define SPAWN_CHECK_DISTANCE 8.0f
+typedef struct {
+    MonsterTypeStats elite, heavy, light, mage;
+} MonsterTypeConfig;
 
-// Episode and observation
-#define MAX_EPISODE_LENGTH 12000  // Doubled for longer episodes
-#define GRID_SIZE 10
-#define GRID_OBS_SIZE (GRID_SIZE * GRID_SIZE)
-#define PLAYER_OBS_SIZE 17
-#define SHOP_SLOTS_OBS 40          // 10 shop slots × 4 properties (available, quality, price, total_stats)
-#define EQUIPMENT_SLOTS_OBS 52     // 13 equipment slots × 4 properties (type, quality, level, total_stats)
-#define TOWN_INTERFACE_OBS 9       // Hero stats, rift level, inventory, navigation, current tab
-#define TOWN_OBS_SIZE (SHOP_SLOTS_OBS + EQUIPMENT_SLOTS_OBS + TOWN_INTERFACE_OBS)
-#define OBS_SIZE (PLAYER_OBS_SIZE + GRID_OBS_SIZE + TOWN_OBS_SIZE)
-#define RIFT_COMPLETION_THRESHOLD 0.8f
+static const MonsterTypeConfig MONSTER_STATS = {
+    .elite = {.damage = 20, .health = 15, .range = 4.0f, .speed = 0.4f},
+    .heavy = {.damage = 15, .health = 15, .range = 1.5f, .speed = 0.2f},
+    .light = {.damage = 3, .health = 8, .range = 2.0f, .speed = 0.8f},
+    .mage = {.damage = 8, .health = 10, .range = 6.0f, .speed = 0.3f}
+};
 
-// Normalization constants
-#define DISTANCE_NORMALIZATION 50.0f
-#define GOLD_NORMALIZATION 1000.0f
-#define FULL_CIRCLE_MULTIPLIER 2.0f
+typedef struct {
+    int max_items, max_inventory_size, mana_regen_rate;
+    int health_potion_cooldown, mana_potion_cooldown;
+    float health_potion_heal_percent, mana_potion_restore_percent;
+} PotionConfig;
+
+static const PotionConfig POTIONS = {
+    .max_items = 100, .max_inventory_size = 20, .mana_regen_rate = 15,
+    .health_potion_cooldown = 80, .mana_potion_cooldown = 68,
+    .health_potion_heal_percent = 0.48f, .mana_potion_restore_percent = 0.48f
+};
+
+typedef struct {
+    int drop_min, drop_range;
+    int health_potion_price, mana_potion_price, stock_amount;
+    int reroll_base_cost;
+    float reroll_scaling;
+} VendorConfig;
+
+static const VendorConfig VENDOR = {
+    .drop_min = 15, .drop_range = 25,
+    .health_potion_price = 20, .mana_potion_price = 15, .stock_amount = 10,
+    .reroll_base_cost = 25, .reroll_scaling = 1.5f
+};
+
+typedef struct {
+    int melee, projectile, cone_slam, fast_projectile;
+    int homing_projectile, melee_projectile, boss_ground_slam, boss_cone;
+} AttackTypes;
+
+typedef struct {
+    int max_projectiles;
+    float speed, speed_fast, speed_homing, hit_radius;
+} ProjectileConfig;
+
+static const AttackTypes ATTACKS = {
+    .melee = 0, .projectile = 1, .cone_slam = 2, .fast_projectile = 3,
+    .homing_projectile = 4, .melee_projectile = 5, .boss_ground_slam = 6, .boss_cone = 7
+};
+
+static const ProjectileConfig PROJECTILE = {
+    .max_projectiles = 50, .speed = 4.0f, .speed_fast = 6.0f,
+    .speed_homing = 3.0f, .hit_radius = 1.0f
+};
+
+typedef struct {
+    float spawn_check_distance;
+} MapGenConfig;
+
+typedef struct {
+    int max_episode_length, grid_size, grid_obs_size;
+    int player_obs_size, shop_slots_obs, equipment_slots_obs;
+    int town_interface_obs, town_obs_size, obs_size;
+    float rift_completion_threshold;
+} ObservationConfig;
+
+typedef struct {
+    float distance, gold, full_circle_multiplier;
+} NormalizationConfig;
+
+static const MapGenConfig MAPGEN = {
+    .spawn_check_distance = 8.0f
+};
+
+static const ObservationConfig OBSERVATION = {
+    .max_episode_length = 12000, .grid_size = 10, .grid_obs_size = 100,
+    .player_obs_size = 17, .shop_slots_obs = 40, .equipment_slots_obs = 52,
+    .town_interface_obs = 9, .town_obs_size = 101, .obs_size = 218,
+    .rift_completion_threshold = 0.8f
+};
+
+static const NormalizationConfig NORMALIZATION = {
+    .distance = 50.0f, .gold = 1000.0f, .full_circle_multiplier = 2.0f
+};
 
 // ============================================================================
 // RENDERING CONSTANTS
@@ -609,168 +647,17 @@ static const MapCalculationConfig MAP_CALCULATIONS = {
     .spawn_density = 0.02f
 };
 
-// Tile constants
-#define TILE_STONE_FLOOR 0
-#define TILE_STONE_WALL 1
-#define TILE_STONE_DOOR 2
-#define TILE_TOWN_FLOOR 3
-#define TILE_VENDOR_STALL 4
 
-// Background and border colors
-#define BG_COLOR_R 40
-#define BG_COLOR_G 35
-#define BG_COLOR_B 30
-#define BORDER_COLOR_RGB 80
-#define CLEAR_BG_R 20
-#define CLEAR_BG_G 20
-#define CLEAR_BG_B 25
 
-// Player rendering
-#define PLAYER_COLOR_R 138
-#define PLAYER_COLOR_G 43
-#define PLAYER_COLOR_B 226
-#define ARMOR_COLOR_R 75
-#define ARMOR_COLOR_B 130
 
-// Shadow rendering
-#define SHADOW_ALPHA 100
-#define SHADOW_OFFSET 2
+typedef struct {
+    int fireball, ice_shard, stone_chunk, energy_bolt, dark_orb, melee_strike;
+} ProjectileTypes;
 
-// Monster colors and sizes
-#define ELITE_COLOR_R 220
-#define ELITE_COLOR_G 20
-#define ELITE_COLOR_B 60
-#define ELITE_SIZE_MULT 1.4f
-#define HEAVY_COLOR_R 139
-#define HEAVY_COLOR_G 69
-#define HEAVY_COLOR_B 19
-#define HEAVY_SIZE_MULT 1.3f
-#define LIGHT_COLOR_R 255
-#define LIGHT_COLOR_G 215
-#define LIGHT_SIZE_MULT 1.2f
-#define MAGE_SIZE_MULT 1.1f
-#define ZOMBIE_COLOR_R 34
-#define ZOMBIE_COLOR_G 139
-#define ZOMBIE_COLOR_B 34
-#define MAROON_COLOR_R 128
-
-// Glow effects
-#define GLOW_ALPHA 100
-#define GLOW_AMPLITUDE 0.2f
-#define GLOW_BASE 0.8f
-#define GLOW_SPEED 0.1f
-
-// Health bars
-#define HEALTH_BAR_HEIGHT 2
-#define HEALTH_BAR_OFFSET 5
-
-// Boss rendering
-#define BOSS_AURA_ALPHA 100
-#define BOSS_CORE_ALPHA 200
-#define BOSS_HEALTH_BAR_HEIGHT 6
-#define BOSS_HEALTH_BAR_OFFSET 15
-#define BOSS_PULSE_AMPLITUDE 0.1f
-#define BOSS_PULSE_BASE 0.9f
-#define BOSS_SHADOW_ALPHA 150
-#define BOSS_SHADOW_OFFSET 3
-#define BOSS_SIZE_MULT 1.5f
-
-// Item rendering
-#define ITEM_GLOW_SPEED 0.2f
-#define ITEM_SIZE_EIGHTH 0.125f
-#define ITEM_SIZE_TWELFTH 0.0833f
-
-// Projectile rendering
-#define PROJECTILE_FIREBALL 0
-#define PROJECTILE_ICE_SHARD 1
-#define PROJECTILE_STONE_CHUNK 2
-#define PROJECTILE_ENERGY_BOLT 3
-#define PROJECTILE_DARK_ORB 4
-#define PROJECTILE_MELEE_STRIKE 5
-#define PROJECTILE_LIFETIME 60
-#define PROJECTILE_SIXTH 0.167f
-#define CORE_COLOR_R 255
-#define CORE_COLOR_G 255
-#define FIREBALL_COLOR_R 255
-#define FIREBALL_COLOR_G 69
-#define FIREBALL_PULSE_AMPLITUDE 0.3f
-#define FIREBALL_PULSE_BASE 0.8f
-#define FIREBALL_PULSE_SPEED 0.3f
-#define HALO_COLOR_R 255
-#define HALO_COLOR_G 140
-#define PROJECTILE_FADE_SPEED 8
-#define PROJECTILE_HALO_OFFSET 3
-#define TRAIL_COLOR_R 255
-#define TRAIL_COLOR_G 100
-#define TRAIL_WIDTH 3
-#define TRAIL_LENGTH 10
-
-// Blizzard rendering
-#define BLIZZARD_BASE_COLOR_R 200
-#define BLIZZARD_BASE_COLOR_G 230
-#define BLIZZARD_BASE_COLOR_B 255
-#define BLIZZARD_BASE_ALPHA 150
-#define FROST_COLOR_R 173
-#define FROST_COLOR_G 216
-#define FROST_COLOR_B 230
-#define FROST_LINE_SIZE 3
-#define ICE_SHARD_COUNT 12
-#define SHARD_TIMING_MULT 5
-#define SHARD_CYCLE_FRAMES 60
-#define SHARD_FALL_SPEED 2
-#define SHARD_SIZE_MIN 1
-#define SHARD_SIZE_RANGE 3
-
-// UI rendering
-#define UI_BG_ALPHA 200
-#define UI_BG_COLOR_RGB 20
-#define UI_HEIGHT 100
-#define UI_LINE_COLOR_RGB 60
-
-// Item quality colors
-#define COLOR_COMMON_GRAY 128
-#define COLOR_WHITE 255
-#define COLOR_WHITE_TRANSLUCENT 128
-#define COLOR_WHITE_ALPHA 64
-#define COLOR_RARE_BLUE_R 100
-#define COLOR_RARE_BLUE_G 149
-#define COLOR_RARE_BLUE_B 237
-#define COLOR_EPIC_PURPLE_R 163
-#define COLOR_EPIC_PURPLE_G 53
-#define COLOR_EPIC_PURPLE_B 238
-#define COLOR_LEGENDARY_ORANGE_R 255
-#define COLOR_LEGENDARY_ORANGE_G 128
-#define COLOR_LEGENDARY_ORANGE_B 0
-#define COLOR_DEFAULT_DARK 64
-#define COLOR_LIGHT_SILVER 192
-#define COLOR_LIGHT_SILVER_STRONG 224
-#define COLOR_SILVER 169
-#define COLOR_BROWN_HANDLE_LIGHT_R 139
-#define COLOR_BROWN_HANDLE_LIGHT_G 115
-#define COLOR_BROWN_HANDLE_LIGHT_B 85
-#define COLOR_BROWN_HANDLE_DARK_R 101
-#define COLOR_BROWN_HANDLE_DARK_G 67
-#define COLOR_BROWN_HANDLE_DARK_B 33
-#define COLOR_BROWN_LEATHER_R 139
-#define COLOR_BROWN_LEATHER_G 69
-#define COLOR_BROWN_LEATHER_B 19
-#define UI_STATS_OFFSET 45
-#define UI_STATS_LINE_HEIGHT 18
-#define POTION_SIZE 15
-#define POTION_SPACING 30
-#define GLOBE_RADIUS 25
-#define GLOBE_MARGIN 10
-#define HEALTH_GLOBE_BG_R 128
-
-// Text sizes
-#define TEXT_SIZE_12 12
-#define TEXT_SIZE_14 14
-#define TEXT_SIZE_16 16
-#define TEXT_SIZE_18 18
-#define TEXT_SIZE_20 20
-
-// Control display
-#define MANUAL_CONTROL_HEIGHT 25
+static const ProjectileTypes PROJECTILE_TYPES = {
+    .fireball = 0, .ice_shard = 1, .stone_chunk = 2,
+    .energy_bolt = 3, .dark_orb = 4, .melee_strike = 5
+};
 
 
 // ============================================================================
@@ -839,38 +726,139 @@ static const MapCalculationConfig MAP_CALCULATIONS = {
 #define TOWN_TIMER_WARNING_2 300    // 5 seconds warning
 #define TOWN_INPUT_COOLDOWN 8       // Frames between WASD inputs (prevents rapid navigation)
 
-// Town interface modes
-#define TOWN_TAB_SHOP 0
-#define TOWN_TAB_CHARACTER 1
+typedef struct {
+    int shop, character;
+} TownTabs;
 
-#define CHARACTER_MODE_EQUIPMENT 0
-#define CHARACTER_MODE_INVENTORY 1
+typedef struct {
+    int equipment, inventory;
+} CharacterModes;
 
-// Equipment types - Diablo 3 warrior layout
-#define EQUIPMENT_NONE 0
-#define EQUIPMENT_SHOULDERS 1    // Left column top
-#define EQUIPMENT_GLOVES 2       // Left column 
-#define EQUIPMENT_RING_LEFT 3    // Left column
-#define EQUIPMENT_WEAPON 4       // Left column bottom
-#define EQUIPMENT_HELMET 5       // Middle column top  
-#define EQUIPMENT_ARMOR 6        // Middle column (body armor)
-#define EQUIPMENT_BELT 7         // Middle column
-#define EQUIPMENT_PANTS 8        // Middle column  
-#define EQUIPMENT_BOOTS 9        // Middle column bottom
-#define EQUIPMENT_AMULET 10      // Right column top
-#define EQUIPMENT_BRACERS 11     // Right column (wrists)
-#define EQUIPMENT_RING_RIGHT 12  // Right column
-#define EQUIPMENT_OFFHAND 13     // Right column bottom
-#define EQUIPMENT_CONSUMABLE 14
+static const TownTabs TOWN_TAB = {
+    .shop = 0, .character = 1
+};
 
-// Legacy compatibility constants
-#define EQUIPMENT_RING EQUIPMENT_RING_LEFT  // For backward compatibility
+static const CharacterModes CHARACTER_MODE = {
+    .equipment = 0, .inventory = 1
+};
 
-// Equipment quality
+typedef struct {
+    int none, shoulders, gloves, ring_left, weapon;
+    int helmet, armor, belt, pants, boots;
+    int amulet, bracers, ring_right, offhand, consumable;
+    int ring;
+} EquipmentTypes;
+
+typedef struct {
+    int common, rare, epic, legendary;
+} QualityTypes;
+
+static const EquipmentTypes EQUIPMENT = {
+    .none = 0, .shoulders = 1, .gloves = 2, .ring_left = 3, .weapon = 4,
+    .helmet = 5, .armor = 6, .belt = 7, .pants = 8, .boots = 9,
+    .amulet = 10, .bracers = 11, .ring_right = 12, .offhand = 13, .consumable = 14,
+    .ring = 3
+};
+
+static const QualityTypes QUALITY = {
+    .common = 0, .rare = 1, .epic = 2, .legendary = 3
+};
+
+#define EQUIPMENT_SHOULDERS 1
+#define EQUIPMENT_GLOVES 2
+#define EQUIPMENT_RING_LEFT 3
+#define EQUIPMENT_WEAPON 4
+#define EQUIPMENT_HELMET 5
+#define EQUIPMENT_ARMOR 6
+#define EQUIPMENT_BELT 7
+#define EQUIPMENT_PANTS 8
+#define EQUIPMENT_BOOTS 9
+#define EQUIPMENT_AMULET 10
+#define EQUIPMENT_BRACERS 11
+#define EQUIPMENT_RING_RIGHT 12
+#define EQUIPMENT_OFFHAND 13
+
 #define QUALITY_COMMON 0
 #define QUALITY_RARE 1
 #define QUALITY_EPIC 2
 #define QUALITY_LEGENDARY 3
+
+#define MONSTER_ZOMBIE 0
+#define MONSTER_MAGE 1
+#define MONSTER_HEAVY_MELEE 2
+#define MONSTER_LIGHT 3
+#define MONSTER_ELITE 4
+
+// Missing combat and world constants
+#define MAP_WIDTH 50
+#define MAP_HEIGHT 38
+#define BOSS_RIFT_GUARDIAN 0
+#define BOSS_BASE_HEALTH 100
+#define BOSS_BASE_DAMAGE 15
+#define BOSS_ATTACK_RANGE 3.0f
+#define BOSS_ATTACK_COOLDOWN 45
+#define MAX_PROJECTILES 50
+#define PROJECTILE_LIFETIME 60
+#define PROJECTILE_SPEED 4.0f
+#define PROJECTILE_SPEED_HOMING 3.0f
+#define PROJECTILE_SPEED_FAST 6.0f
+#define PROJECTILE_HIT_RADIUS 1.0f
+#define PROJECTILE_FIREBALL 0
+#define BLIZZARD_DURATION 60
+#define BLIZZARD_DAMAGE 15
+#define BLIZZARD_DAMAGE_INTERVAL 15
+#define RIFT_COMPLETION_THRESHOLD 0.8f
+#define MAX_BLIZZARD_AREAS 10
+#define TOWN_TAB_SHOP 0
+#define TOWN_TAB_CHARACTER 1
+#define MONSTERS_TO_SPAWN 38
+
+// Attack type constants for switch statements
+#define ATTACK_TYPE_MELEE 0
+#define ATTACK_TYPE_PROJECTILE 1
+#define ATTACK_TYPE_CONE_SLAM 2
+#define ATTACK_TYPE_FAST_PROJECTILE 3
+#define ATTACK_TYPE_HOMING_PROJECTILE 4
+#define ATTACK_TYPE_MELEE_PROJECTILE 5
+#define ATTACK_TYPE_BOSS_GROUND_SLAM 6
+#define ATTACK_TYPE_BOSS_CONE 7
+
+// Phase constants for legacy code
+#define PHASE_RIFT 0
+#define PHASE_TOWN 1
+
+// Character mode constants
+#define CHARACTER_MODE_EQUIPMENT 0
+#define CHARACTER_MODE_INVENTORY 1
+
+#define ITEM_GOLD 0
+#define ITEM_HEALTH_POTION 1
+#define ITEM_MANA_POTION 2
+
+#define TILE_STONE_FLOOR 0
+#define TILE_STONE_WALL 1
+#define TILE_STONE_DOOR 2
+#define TILE_TOWN_FLOOR 3
+#define TILE_VENDOR_STALL 4
+
+// Action constants for legacy code
+#define ACTION_MOVE_UP 0
+#define ACTION_MOVE_DOWN 1
+#define ACTION_MOVE_LEFT 2
+#define ACTION_MOVE_RIGHT 3
+#define ACTION_MOVE_UP_LEFT 4
+#define ACTION_MOVE_UP_RIGHT 5
+#define ACTION_MOVE_DOWN_LEFT 6
+#define ACTION_MOVE_DOWN_RIGHT 7
+#define ACTION_BLIZZARD 8
+#define ACTION_USE_HEALTH_POTION 9
+#define ACTION_USE_MANA_POTION 10
+#define ACTION_INTERACT 11
+#define ACTION_NOOP 12
+#define ACTION_EXIT_TOWN 13
+#define ACTION_SWITCH_TO_SHOP 14
+#define ACTION_SWITCH_TO_CHARACTER 15
+#define ACTION_REROLL_SHOP 16
 
 // Shop constants
 #define SHOP_ITEMS_COUNT 10

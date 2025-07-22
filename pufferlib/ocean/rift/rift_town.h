@@ -19,104 +19,104 @@ void init_hero_stats(Rift* env) {
     env->hero_stats.intelligence = 10;
     env->hero_stats.vitality = 10;
     
-    env->equipment.weapon_type = EQUIPMENT_WEAPON;
-    env->equipment.weapon_quality = QUALITY_COMMON;
+    env->equipment.weapon_type = EQUIPMENT.weapon;
+    env->equipment.weapon_quality = QUALITY.common;
     env->equipment.weapon_level = 1;
     env->equipment.weapon_stat_bonuses[0] = 2;
     env->equipment.weapon_stat_bonuses[1] = 0;
     env->equipment.weapon_stat_bonuses[2] = 0;
     env->equipment.weapon_stat_bonuses[3] = 0;
     
-    env->equipment.offhand_type = EQUIPMENT_OFFHAND;
-    env->equipment.offhand_quality = QUALITY_COMMON;
+    env->equipment.offhand_type = EQUIPMENT.offhand;
+    env->equipment.offhand_quality = QUALITY.common;
     env->equipment.offhand_level = 1;
     env->equipment.offhand_stat_bonuses[0] = 0;
     env->equipment.offhand_stat_bonuses[1] = 0;
     env->equipment.offhand_stat_bonuses[2] = 0;
     env->equipment.offhand_stat_bonuses[3] = 1;
     
-    env->equipment.ring_left_type = EQUIPMENT_RING_LEFT;
-    env->equipment.ring_left_quality = QUALITY_COMMON;
+    env->equipment.ring_left_type = EQUIPMENT.ring_left;
+    env->equipment.ring_left_quality = QUALITY.common;
     env->equipment.ring_left_level = 1;
     env->equipment.ring_left_stat_bonuses[0] = 1;
     env->equipment.ring_left_stat_bonuses[1] = 0;
     env->equipment.ring_left_stat_bonuses[2] = 0;
     env->equipment.ring_left_stat_bonuses[3] = 0;
     
-    env->equipment.ring_right_type = EQUIPMENT_RING_RIGHT;
-    env->equipment.ring_right_quality = QUALITY_COMMON;
+    env->equipment.ring_right_type = EQUIPMENT.ring_right;
+    env->equipment.ring_right_quality = QUALITY.common;
     env->equipment.ring_right_level = 1;
     env->equipment.ring_right_stat_bonuses[0] = 0;
     env->equipment.ring_right_stat_bonuses[1] = 0;
     env->equipment.ring_right_stat_bonuses[2] = 1;
     env->equipment.ring_right_stat_bonuses[3] = 0;
     
-    env->equipment.amulet_type = EQUIPMENT_AMULET;
-    env->equipment.amulet_quality = QUALITY_COMMON;
+    env->equipment.amulet_type = EQUIPMENT.amulet;
+    env->equipment.amulet_quality = QUALITY.common;
     env->equipment.amulet_level = 1;
     env->equipment.amulet_stat_bonuses[0] = 0;
     env->equipment.amulet_stat_bonuses[1] = 1;
     env->equipment.amulet_stat_bonuses[2] = 0;
     env->equipment.amulet_stat_bonuses[3] = 0;
     
-    env->equipment.boots_type = EQUIPMENT_BOOTS;
-    env->equipment.boots_quality = QUALITY_COMMON;
+    env->equipment.boots_type = EQUIPMENT.boots;
+    env->equipment.boots_quality = QUALITY.common;
     env->equipment.boots_level = 1;
     env->equipment.boots_stat_bonuses[0] = 0;
     env->equipment.boots_stat_bonuses[1] = 0;
     env->equipment.boots_stat_bonuses[2] = 0;
     env->equipment.boots_stat_bonuses[3] = 1;
     
-    env->equipment.gloves_type = EQUIPMENT_GLOVES;
-    env->equipment.gloves_quality = QUALITY_COMMON;
+    env->equipment.gloves_type = EQUIPMENT.gloves;
+    env->equipment.gloves_quality = QUALITY.common;
     env->equipment.gloves_level = 1;
     env->equipment.gloves_stat_bonuses[0] = 0;
     env->equipment.gloves_stat_bonuses[1] = 1;
     env->equipment.gloves_stat_bonuses[2] = 0;
     env->equipment.gloves_stat_bonuses[3] = 0;
     
-    env->equipment.helmet_type = EQUIPMENT_HELMET;
-    env->equipment.helmet_quality = QUALITY_COMMON;
+    env->equipment.helmet_type = EQUIPMENT.helmet;
+    env->equipment.helmet_quality = QUALITY.common;
     env->equipment.helmet_level = 1;
     env->equipment.helmet_stat_bonuses[0] = 1;
     env->equipment.helmet_stat_bonuses[1] = 0;
     env->equipment.helmet_stat_bonuses[2] = 0;
     env->equipment.helmet_stat_bonuses[3] = 0;
     
-    env->equipment.shoulders_type = EQUIPMENT_SHOULDERS;
-    env->equipment.shoulders_quality = QUALITY_COMMON;
+    env->equipment.shoulders_type = EQUIPMENT.shoulders;
+    env->equipment.shoulders_quality = QUALITY.common;
     env->equipment.shoulders_level = 1;
     env->equipment.shoulders_stat_bonuses[0] = 1;
     env->equipment.shoulders_stat_bonuses[1] = 0;
     env->equipment.shoulders_stat_bonuses[2] = 0;
     env->equipment.shoulders_stat_bonuses[3] = 0;
     
-    env->equipment.armor_type = EQUIPMENT_ARMOR;
-    env->equipment.armor_quality = QUALITY_COMMON;
+    env->equipment.armor_type = EQUIPMENT.armor;
+    env->equipment.armor_quality = QUALITY.common;
     env->equipment.armor_level = 1;
     env->equipment.armor_stat_bonuses[0] = 0;
     env->equipment.armor_stat_bonuses[1] = 0;
     env->equipment.armor_stat_bonuses[2] = 0;
     env->equipment.armor_stat_bonuses[3] = 2;
     
-    env->equipment.belt_type = EQUIPMENT_BELT;
-    env->equipment.belt_quality = QUALITY_COMMON;
+    env->equipment.belt_type = EQUIPMENT.belt;
+    env->equipment.belt_quality = QUALITY.common;
     env->equipment.belt_level = 1;
     env->equipment.belt_stat_bonuses[0] = 0;
     env->equipment.belt_stat_bonuses[1] = 0;
     env->equipment.belt_stat_bonuses[2] = 0;
     env->equipment.belt_stat_bonuses[3] = 1;
     
-    env->equipment.pants_type = EQUIPMENT_PANTS;
-    env->equipment.pants_quality = QUALITY_COMMON;
+    env->equipment.pants_type = EQUIPMENT.pants;
+    env->equipment.pants_quality = QUALITY.common;
     env->equipment.pants_level = 1;
     env->equipment.pants_stat_bonuses[0] = 0;
     env->equipment.pants_stat_bonuses[1] = 1;
     env->equipment.pants_stat_bonuses[2] = 0;
     env->equipment.pants_stat_bonuses[3] = 0;
     
-    env->equipment.bracers_type = EQUIPMENT_BRACERS;
-    env->equipment.bracers_quality = QUALITY_COMMON;
+    env->equipment.bracers_type = EQUIPMENT.bracers;
+    env->equipment.bracers_quality = QUALITY.common;
     env->equipment.bracers_level = 1;
     env->equipment.bracers_stat_bonuses[0] = 0;
     env->equipment.bracers_stat_bonuses[1] = 1;
@@ -246,25 +246,25 @@ void calculate_total_stats(Rift* env) {
                          env->equipment.bracers_level;
     
     uint32_t equipped_items = 0;
-    if (env->equipment.weapon_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.offhand_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.ring_left_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.ring_right_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.amulet_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.boots_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.gloves_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.helmet_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.shoulders_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.armor_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.belt_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.pants_type != EQUIPMENT_NONE) equipped_items++;
-    if (env->equipment.bracers_type != EQUIPMENT_NONE) equipped_items++;
+    if (env->equipment.weapon_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.offhand_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.ring_left_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.ring_right_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.amulet_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.boots_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.gloves_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.helmet_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.shoulders_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.armor_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.belt_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.pants_type != EQUIPMENT.none) equipped_items++;
+    if (env->equipment.bracers_type != EQUIPMENT.none) equipped_items++;
     
     env->hero_stats.average_item_level = equipped_items > 0 ? (total_ilvl + equipped_items - 1) / equipped_items : 0;
     
-    env->player.max_health = PLAYER_MAX_HEALTH + (env->hero_stats.total_vitality * 5) + (env->hero_stats.total_strength * 3);
-    env->player.max_mana = PLAYER_MAX_MANA + (env->hero_stats.total_intelligence * 2);
-    env->player.damage = PLAYER_BASE_DAMAGE + (env->hero_stats.total_strength * 2) + (env->hero_stats.total_intelligence * 1);
+    env->player.max_health = PLAYER.max_health + (env->hero_stats.total_vitality * 5) + (env->hero_stats.total_strength * 3);
+    env->player.max_mana = PLAYER.max_mana + (env->hero_stats.total_intelligence * 2);
+    env->player.damage = PLAYER.base_damage + (env->hero_stats.total_strength * 2) + (env->hero_stats.total_intelligence * 1);
     env->player.dodge_chance = env->hero_stats.total_dexterity;
     if (env->player.dodge_chance > 50) env->player.dodge_chance = 50;
 }
@@ -298,13 +298,13 @@ void generate_shop_inventory(Rift* env) {
         
         uint32_t quality_roll = rand() % 100;
         if (quality_roll < legendary_chance) {
-            item->item_quality = QUALITY_LEGENDARY;
+            item->item_quality = QUALITY.legendary;
         } else if (quality_roll < legendary_chance + epic_chance) {
-            item->item_quality = QUALITY_EPIC;
+            item->item_quality = QUALITY.epic;
         } else if (quality_roll < legendary_chance + epic_chance + rare_chance) {
-            item->item_quality = QUALITY_RARE;
+            item->item_quality = QUALITY.rare;
         } else {
-            item->item_quality = QUALITY_COMMON;
+            item->item_quality = QUALITY.common;
         }
         
         item->item_level = GetScaledItemLevel(rift_level);

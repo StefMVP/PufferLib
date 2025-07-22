@@ -14,53 +14,53 @@ void handle_town_interaction(Rift* env);
 void transition_to_rift(Rift* env);
 
 void generate_rift_map(Rift* env) {
-    memset(env->map, CELL_FLOOR, MAP_SIZE);
+    memset(env->map, CELLS.floor, MAP.size);
 }
 
 void generate_town_map(Rift* env) {
-    memset(env->map, CELL_FLOOR, MAP_SIZE);
+    memset(env->map, CELLS.floor, MAP.size);
     
     env->vendor.x = VENDOR_POSITION_X;
     env->vendor.y = VENDOR_POSITION_Y;
     
-    env->vendor.items_for_sale[0] = ITEM_HEALTH_POTION;
-    env->vendor.prices[0] = VENDOR_HEALTH_POTION_PRICE;
+    env->vendor.items_for_sale[0] = ITEMS.health_potion;
+    env->vendor.prices[0] = VENDOR.health_potion_price;
     env->vendor.stock[0] = 10;
     
-    env->vendor.items_for_sale[1] = ITEM_MANA_POTION;
-    env->vendor.prices[1] = VENDOR_MANA_POTION_PRICE;
-    env->vendor.stock[1] = VENDOR_STOCK_AMOUNT;
+    env->vendor.items_for_sale[1] = ITEMS.mana_potion;
+    env->vendor.prices[1] = VENDOR.mana_potion_price;
+    env->vendor.stock[1] = VENDOR.stock_amount;
 }
 
 uint32_t get_random_monster_type(Rift* env, uint32_t allow_elite) {
     uint32_t type_roll = rand() % 100;
     
     if (allow_elite && type_roll < 10 && env->elites_spawned < env->max_elites) {
-        return MONSTER_ELITE;
+        return MONSTERS.elite;
     } else if (type_roll < 30) {
-        return MONSTER_HEAVY_MELEE;
+        return MONSTERS.heavy_melee;
     } else if (type_roll < 55) {
-        return MONSTER_MAGE;
+        return MONSTERS.mage;
     } else if (type_roll < 80) {
-        return MONSTER_LIGHT;
+        return MONSTERS.light;
     } else {
-        return MONSTER_ZOMBIE;
+        return MONSTERS.zombie;
     }
 }
 
 void spawn_monster_pack(Rift* env, float center_x, float center_y, uint32_t pack_size, uint32_t monster_type) {
     for (uint32_t p = 0; p < pack_size; p++) {
-        for (uint16_t i = 0; i < MAX_MONSTERS; i++) {
-            if (!env->monsters[i].alive && env->monsters_spawned < MONSTERS_TO_SPAWN) {
+        for (uint16_t i = 0; i < MONSTER.max_count; i++) {
+            if (!env->monsters[i].alive && env->monsters_spawned < MONSTER.spawn_count) {
                 float angle = ((float)rand() / RAND_MAX) * 2.0f * PI;
                 float radius = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
                 float spawn_x = center_x + cos(angle) * radius;
                 float spawn_y = center_y + sin(angle) * radius;
                 
                 if (spawn_x < 1) spawn_x = 1;
-                if (spawn_x >= MAP_WIDTH - 1) spawn_x = MAP_WIDTH - 2;
+                if (spawn_x >= MAP.width - 1) spawn_x = MAP.width - 2;
                 if (spawn_y < 1) spawn_y = 1;
-                if (spawn_y >= MAP_HEIGHT - 1) spawn_y = MAP_HEIGHT - 2;
+                if (spawn_y >= MAP.height - 1) spawn_y = MAP.height - 2;
                 
                 env->monsters[i].x = spawn_x;
                 env->monsters[i].y = spawn_y;
@@ -74,44 +74,44 @@ void spawn_monster_pack(Rift* env, float center_x, float center_y, uint32_t pack
                 
                 switch (monster_type) {
                     case MONSTER_MAGE:
-                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MAGE_HEALTH, env->current_rift_level);
+                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER_STATS.mage.health, env->current_rift_level);
                         env->monsters[i].max_health = env->monsters[i].health;
-                        env->monsters[i].damage = (uint32_t)GetScaledMonsterDamage(MAGE_DAMAGE, env->current_rift_level);
-                        env->monsters[i].speed = GetScaledMonsterSpeed(MAGE_SPEED, env->current_rift_level);
-                        env->monsters[i].attack_range = MAGE_RANGE;
-                        env->monsters[i].attack_type = ATTACK_TYPE_HOMING_PROJECTILE;
+                        env->monsters[i].damage = (uint32_t)GetScaledMonsterDamage(MONSTER_STATS.mage.damage, env->current_rift_level);
+                        env->monsters[i].speed = GetScaledMonsterSpeed(MONSTER_STATS.mage.speed, env->current_rift_level);
+                        env->monsters[i].attack_range = MONSTER_STATS.mage.range;
+                        env->monsters[i].attack_type = ATTACKS.homing_projectile;
                         break;
                     case MONSTER_HEAVY_MELEE:
-                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(HEAVY_HEALTH, env->current_rift_level);
+                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER_STATS.heavy.health, env->current_rift_level);
                         env->monsters[i].max_health = env->monsters[i].health;
-                        env->monsters[i].damage = (uint32_t)GetScaledMonsterDamage(HEAVY_DAMAGE, env->current_rift_level);
-                        env->monsters[i].speed = GetScaledMonsterSpeed(HEAVY_SPEED, env->current_rift_level);
-                        env->monsters[i].attack_range = HEAVY_RANGE;
-                        env->monsters[i].attack_type = ATTACK_TYPE_CONE_SLAM;
+                        env->monsters[i].damage = (uint32_t)GetScaledMonsterDamage(MONSTER_STATS.heavy.damage, env->current_rift_level);
+                        env->monsters[i].speed = GetScaledMonsterSpeed(MONSTER_STATS.heavy.speed, env->current_rift_level);
+                        env->monsters[i].attack_range = MONSTER_STATS.heavy.range;
+                        env->monsters[i].attack_type = ATTACKS.cone_slam;
                         break;
                     case MONSTER_LIGHT:
-                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(LIGHT_HEALTH, env->current_rift_level);
+                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER_STATS.light.health, env->current_rift_level);
                         env->monsters[i].max_health = env->monsters[i].health;
-                        env->monsters[i].damage = (uint32_t)GetScaledMonsterDamage(LIGHT_DAMAGE, env->current_rift_level);
-                        env->monsters[i].speed = GetScaledMonsterSpeed(LIGHT_SPEED, env->current_rift_level);
-                        env->monsters[i].attack_range = LIGHT_RANGE;
-                        env->monsters[i].attack_type = ATTACK_TYPE_FAST_PROJECTILE;
+                        env->monsters[i].damage = (uint32_t)GetScaledMonsterDamage(MONSTER_STATS.light.damage, env->current_rift_level);
+                        env->monsters[i].speed = GetScaledMonsterSpeed(MONSTER_STATS.light.speed, env->current_rift_level);
+                        env->monsters[i].attack_range = MONSTER_STATS.light.range;
+                        env->monsters[i].attack_type = ATTACKS.fast_projectile;
                         break;
                     case MONSTER_ELITE:
-                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(ELITE_HEALTH, env->current_rift_level);
+                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER_STATS.elite.health, env->current_rift_level);
                         env->monsters[i].max_health = env->monsters[i].health;
-                        env->monsters[i].damage = (uint32_t)GetScaledMonsterDamage(ELITE_DAMAGE, env->current_rift_level);
-                        env->monsters[i].speed = GetScaledMonsterSpeed(ELITE_SPEED, env->current_rift_level);
-                        env->monsters[i].attack_range = ELITE_RANGE;
-                        env->monsters[i].attack_type = ATTACK_TYPE_PROJECTILE;
+                        env->monsters[i].damage = (uint32_t)GetScaledMonsterDamage(MONSTER_STATS.elite.damage, env->current_rift_level);
+                        env->monsters[i].speed = GetScaledMonsterSpeed(MONSTER_STATS.elite.speed, env->current_rift_level);
+                        env->monsters[i].attack_range = MONSTER_STATS.elite.range;
+                        env->monsters[i].attack_type = ATTACKS.projectile;
                         break;
                     default:
-                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER_BASE_HEALTH, env->current_rift_level);
+                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER.base_health, env->current_rift_level);
                         env->monsters[i].max_health = env->monsters[i].health;
-                        env->monsters[i].damage = (uint32_t)GetScaledMonsterDamage(MONSTER_BASE_DAMAGE, env->current_rift_level);
-                        env->monsters[i].speed = GetScaledMonsterSpeed(0.5f, env->current_rift_level);
-                        env->monsters[i].attack_range = 2.5f;
-                        env->monsters[i].attack_type = ATTACK_TYPE_MELEE_PROJECTILE;
+                        env->monsters[i].damage = (uint32_t)GetScaledMonsterDamage(MONSTER.base_damage, env->current_rift_level);
+                        env->monsters[i].speed = GetScaledMonsterSpeed(MONSTER_STATS.light.speed, env->current_rift_level);
+                        env->monsters[i].attack_range = MONSTER_STATS.light.range;
+                        env->monsters[i].attack_type = ATTACKS.melee_projectile;
                         break;
                 }
                 
@@ -124,17 +124,17 @@ void spawn_monster_pack(Rift* env, float center_x, float center_y, uint32_t pack
 
 void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint32_t pack_size) {
     for (uint32_t p = 0; p < pack_size; p++) {
-        for (uint16_t i = 0; i < MAX_MONSTERS; i++) {
-            if (!env->monsters[i].alive && env->monsters_spawned < MONSTERS_TO_SPAWN) {
+        for (uint16_t i = 0; i < MONSTER.max_count; i++) {
+            if (!env->monsters[i].alive && env->monsters_spawned < MONSTER.spawn_count) {
                 float angle = ((float)rand() / RAND_MAX) * 2.0f * PI;
                 float radius = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
                 float spawn_x = center_x + cos(angle) * radius;
                 float spawn_y = center_y + sin(angle) * radius;
                 
                 if (spawn_x < 1) spawn_x = 1;
-                if (spawn_x >= MAP_WIDTH - 1) spawn_x = MAP_WIDTH - 2;
+                if (spawn_x >= MAP.width - 1) spawn_x = MAP.width - 2;
                 if (spawn_y < 1) spawn_y = 1;
-                if (spawn_y >= MAP_HEIGHT - 1) spawn_y = MAP_HEIGHT - 2;
+                if (spawn_y >= MAP.height - 1) spawn_y = MAP.height - 2;
                 
                 uint32_t monster_type = get_random_monster_type(env, 1);
                 if (monster_type == MONSTER_ELITE) {
@@ -153,44 +153,44 @@ void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint32_t pack
                 
                 switch (monster_type) {
                     case MONSTER_MAGE:
-                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MAGE_HEALTH, env->current_rift_level);
+                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER_STATS.mage.health, env->current_rift_level);
                         env->monsters[i].max_health = env->monsters[i].health;
-                        env->monsters[i].damage = (uint32_t)(GetScaledMonsterDamage(MAGE_DAMAGE, env->current_rift_level) * 0.75f);
-                        env->monsters[i].speed = GetScaledMonsterSpeed(MAGE_SPEED, env->current_rift_level);
-                        env->monsters[i].attack_range = MAGE_RANGE;
-                        env->monsters[i].attack_type = ATTACK_TYPE_HOMING_PROJECTILE;
+                        env->monsters[i].damage = (uint32_t)(GetScaledMonsterDamage(MONSTER_STATS.mage.damage, env->current_rift_level) * 0.75f);
+                        env->monsters[i].speed = GetScaledMonsterSpeed(MONSTER_STATS.mage.speed, env->current_rift_level);
+                        env->monsters[i].attack_range = MONSTER_STATS.mage.range;
+                        env->monsters[i].attack_type = ATTACKS.homing_projectile;
                         break;
                     case MONSTER_HEAVY_MELEE:
-                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(HEAVY_HEALTH, env->current_rift_level);
+                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER_STATS.heavy.health, env->current_rift_level);
                         env->monsters[i].max_health = env->monsters[i].health;
-                        env->monsters[i].damage = (uint32_t)(GetScaledMonsterDamage(HEAVY_DAMAGE, env->current_rift_level) * 0.75f);
-                        env->monsters[i].speed = GetScaledMonsterSpeed(HEAVY_SPEED, env->current_rift_level);
-                        env->monsters[i].attack_range = HEAVY_RANGE;
-                        env->monsters[i].attack_type = ATTACK_TYPE_CONE_SLAM;
+                        env->monsters[i].damage = (uint32_t)(GetScaledMonsterDamage(MONSTER_STATS.heavy.damage, env->current_rift_level) * 0.75f);
+                        env->monsters[i].speed = GetScaledMonsterSpeed(MONSTER_STATS.heavy.speed, env->current_rift_level);
+                        env->monsters[i].attack_range = MONSTER_STATS.heavy.range;
+                        env->monsters[i].attack_type = ATTACKS.cone_slam;
                         break;
                     case MONSTER_LIGHT:
-                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(LIGHT_HEALTH, env->current_rift_level);
+                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER_STATS.light.health, env->current_rift_level);
                         env->monsters[i].max_health = env->monsters[i].health;
-                        env->monsters[i].damage = (uint32_t)(GetScaledMonsterDamage(LIGHT_DAMAGE, env->current_rift_level) * 0.75f);
-                        env->monsters[i].speed = GetScaledMonsterSpeed(LIGHT_SPEED, env->current_rift_level);
-                        env->monsters[i].attack_range = LIGHT_RANGE;
-                        env->monsters[i].attack_type = ATTACK_TYPE_FAST_PROJECTILE;
+                        env->monsters[i].damage = (uint32_t)(GetScaledMonsterDamage(MONSTER_STATS.light.damage, env->current_rift_level) * 0.75f);
+                        env->monsters[i].speed = GetScaledMonsterSpeed(MONSTER_STATS.light.speed, env->current_rift_level);
+                        env->monsters[i].attack_range = MONSTER_STATS.light.range;
+                        env->monsters[i].attack_type = ATTACKS.fast_projectile;
                         break;
                     case MONSTER_ELITE:
-                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(ELITE_HEALTH, env->current_rift_level);
+                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER_STATS.elite.health, env->current_rift_level);
                         env->monsters[i].max_health = env->monsters[i].health;
-                        env->monsters[i].damage = (uint32_t)(GetScaledMonsterDamage(ELITE_DAMAGE, env->current_rift_level) * 0.75f);
-                        env->monsters[i].speed = GetScaledMonsterSpeed(ELITE_SPEED, env->current_rift_level);
-                        env->monsters[i].attack_range = ELITE_RANGE;
-                        env->monsters[i].attack_type = ATTACK_TYPE_PROJECTILE;
+                        env->monsters[i].damage = (uint32_t)(GetScaledMonsterDamage(MONSTER_STATS.elite.damage, env->current_rift_level) * 0.75f);
+                        env->monsters[i].speed = GetScaledMonsterSpeed(MONSTER_STATS.elite.speed, env->current_rift_level);
+                        env->monsters[i].attack_range = MONSTER_STATS.elite.range;
+                        env->monsters[i].attack_type = ATTACKS.projectile;
                         break;
                     default:
-                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER_BASE_HEALTH, env->current_rift_level);
+                        env->monsters[i].health = (uint32_t)GetScaledMonsterHealth(MONSTER.base_health, env->current_rift_level);
                         env->monsters[i].max_health = env->monsters[i].health;
-                        env->monsters[i].damage = (uint32_t)(GetScaledMonsterDamage(MONSTER_BASE_DAMAGE, env->current_rift_level) * 0.75f);
-                        env->monsters[i].speed = GetScaledMonsterSpeed(0.5f, env->current_rift_level);
-                        env->monsters[i].attack_range = 2.5f;
-                        env->monsters[i].attack_type = ATTACK_TYPE_MELEE_PROJECTILE;
+                        env->monsters[i].damage = (uint32_t)(GetScaledMonsterDamage(MONSTER.base_damage, env->current_rift_level) * 0.75f);
+                        env->monsters[i].speed = GetScaledMonsterSpeed(MONSTER_STATS.light.speed, env->current_rift_level);
+                        env->monsters[i].attack_range = MONSTER_STATS.light.range;
+                        env->monsters[i].attack_type = ATTACKS.melee_projectile;
                         break;
                 }
                 
@@ -202,12 +202,12 @@ void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint32_t pack
 }
 
 void spawn_monsters(Rift* env) {
-    if (env->current_phase != PHASE_RIFT) return;
-    if (env->monsters_spawned >= MONSTERS_TO_SPAWN) return;
+    if (env->current_phase != PHASES.rift) return;
+    if (env->monsters_spawned >= MONSTER.spawn_count) return;
     
     if ((float)rand() / RAND_MAX < env->config.monster_spawn_rate) {
-        float spawn_x = 3.0f + ((float)rand() / RAND_MAX) * (MAP_WIDTH - 6.0f);
-        float spawn_y = 3.0f + ((float)rand() / RAND_MAX) * (MAP_HEIGHT - 6.0f);
+        float spawn_x = 3.0f + ((float)rand() / RAND_MAX) * (MAP.width - 6.0f);
+        float spawn_y = 3.0f + ((float)rand() / RAND_MAX) * (MAP.height - 6.0f);
         
         uint32_t pack_size = 2 + rand() % 3;
         
@@ -221,9 +221,9 @@ uint32_t GetScaledAttackCooldown(uint32_t base_cooldown, uint32_t rift_level) {
 }
 
 void update_monsters(Rift* env) {
-    if (env->current_phase != PHASE_RIFT) return;
+    if (env->current_phase != PHASES.rift) return;
     
-    for (uint16_t i = 0; i < MAX_MONSTERS; i++) {
+    for (uint16_t i = 0; i < MONSTER.max_count; i++) {
         if (env->monsters[i].alive) {
             Monster* monster = &env->monsters[i];
             
@@ -240,40 +240,40 @@ void update_monsters(Rift* env) {
             
             float dist_to_player = distance(env->player.x, env->player.y, monster->x, monster->y);
             
-            if (dist_to_player <= MONSTER_DETECTION_RANGE) {
+            if (dist_to_player <= MONSTER.detection_range) {
                 float dx = env->player.x - monster->x;
                 float dy = env->player.y - monster->y;
                 
-                if (dist_to_player > SPAWN_CHECK_DISTANCE) {
+                if (dist_to_player > MAPGEN.spawn_check_distance) {
                     dx /= dist_to_player;
                     dy /= dist_to_player;
                     
                     float new_x = monster->x + dx * monster->speed;
                     float new_y = monster->y + dy * monster->speed;
                     
-                    if (new_x >= 0 && new_x < MAP_WIDTH && new_y >= 0 && new_y < MAP_HEIGHT) {
+                    if (new_x >= 0 && new_x < MAP.width && new_y >= 0 && new_y < MAP.height) {
                         monster->x = new_x;
                         monster->y = new_y;
                     }
                     
-                    monster->move_cooldown = MONSTER_MOVEMENT_COOLDOWN;
+                    monster->move_cooldown = MONSTER.movement_cooldown;
                 } else {
                     if (env->player.alive && monster->attack_cooldown == 0 && dist_to_player <= monster->attack_range) {
                         execute_monster_attack(env, monster);
-                        monster->attack_cooldown = GetScaledAttackCooldown(MONSTER_ATTACK_COOLDOWN, env->current_rift_level);
+                        monster->attack_cooldown = GetScaledAttackCooldown(MONSTER.attack_cooldown, env->current_rift_level);
                     }
                 }
             } else {
-                if (rand() % MONSTER_WANDER_CHANCE == 0) {
-                    float random_angle = ((float)rand() / RAND_MAX) * FULL_CIRCLE_MULTIPLIER * PI;
+                if (rand() % MONSTER.wander_chance == 0) {
+                    float random_angle = ((float)rand() / RAND_MAX) * NORMALIZATION.full_circle_multiplier * PI;
                     float new_x = monster->x + cos(random_angle) * monster->speed;
                     float new_y = monster->y + sin(random_angle) * monster->speed;
                     
-                    if (new_x >= 0 && new_x < MAP_WIDTH && new_y >= 0 && new_y < MAP_HEIGHT) {
+                    if (new_x >= 0 && new_x < MAP.width && new_y >= 0 && new_y < MAP.height) {
                         monster->x = new_x;
                         monster->y = new_y;
                     }
-                    monster->move_cooldown = MONSTER_WANDER_COOLDOWN;
+                    monster->move_cooldown = MONSTER.wander_cooldown;
                 }
             }
         }
@@ -296,7 +296,7 @@ void update_player(Rift* env) {
         env->player.low_health_penalty_cooldown--;
     }
     
-    if (env->current_phase == PHASE_RIFT && env->player.alive) {
+    if (env->current_phase == PHASES.rift && env->player.alive) {
         float health_percent = (float)env->player.health / (float)env->player.max_health;
         if (health_percent <= LOW_HEALTH_THRESHOLD && 
             env->player.health_potion_cooldown == 0 && 
@@ -309,14 +309,14 @@ void update_player(Rift* env) {
     }
     
     env->player.mana_regen_timer++;
-    if (env->player.mana_regen_timer >= MANA_REGEN_RATE) {
+    if (env->player.mana_regen_timer >= POTIONS.mana_regen_rate) {
         env->player.mana_regen_timer = 0;
         if (env->player.mana < env->player.max_mana) {
             env->player.mana++;
         }
     }
     
-    if (env->current_phase == PHASE_TOWN) {
+    if (env->current_phase == PHASES.town) {
         if (action == ACTION_MOVE_UP || action == ACTION_MOVE_DOWN || 
             action == ACTION_MOVE_LEFT || action == ACTION_MOVE_RIGHT) {
             handle_town_navigation(env, action);
@@ -382,33 +382,33 @@ void update_player(Rift* env) {
             break;
     }
     
-    if (new_x >= 0 && new_x < MAP_WIDTH && new_y >= 0 && new_y < MAP_HEIGHT) {
+    if (new_x >= 0 && new_x < MAP.width && new_y >= 0 && new_y < MAP.height) {
         env->player.x = new_x;
         env->player.y = new_y;
     }
     
     switch (action) {
         case ACTION_BLIZZARD:
-            if (env->player.blizzard_cooldown == 0 && env->player.mana >= BLIZZARD_MANA_COST) {
+            if (env->player.blizzard_cooldown == 0 && env->player.mana >= BLIZZARD.mana_cost) {
                 handle_blizzard(env);
             }
             break;
         case ACTION_USE_HEALTH_POTION:
             if (env->player.alive && env->player.health_potion_cooldown == 0 && env->player.health < env->player.max_health) {
-                uint32_t heal_amount = env->player.max_health * HEALTH_POTION_HEAL_PERCENT;
+                uint32_t heal_amount = env->player.max_health * POTIONS.health_potion_heal_percent;
                 env->player.health = clamp_uint32(env->player.health + heal_amount, 0, env->player.max_health);
-                env->player.health_potion_cooldown = HEALTH_POTION_COOLDOWN;
+                env->player.health_potion_cooldown = POTIONS.health_potion_cooldown;
             }
             break;
         case ACTION_USE_MANA_POTION:
             if (env->player.alive && env->player.mana_potion_cooldown == 0 && env->player.mana < env->player.max_mana) {
-                uint32_t mana_amount = env->player.max_mana * MANA_POTION_RESTORE_PERCENT;
+                uint32_t mana_amount = env->player.max_mana * POTIONS.mana_potion_restore_percent;
                 env->player.mana = clamp_uint32(env->player.mana + mana_amount, 0, env->player.max_mana);
-                env->player.mana_potion_cooldown = MANA_POTION_COOLDOWN;
+                env->player.mana_potion_cooldown = POTIONS.mana_potion_cooldown;
             }
             break;
         case ACTION_INTERACT:
-            if (env->current_phase == PHASE_TOWN) {
+            if (env->current_phase == PHASES.town) {
                 handle_town_interaction(env);
             }
             break;
@@ -420,10 +420,10 @@ void handle_blizzard(Rift* env) {
 }
 
 void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y) {
-    if (env->current_phase != PHASE_RIFT) return;
+    if (env->current_phase != PHASES.rift) return;
     
-    env->player.mana -= BLIZZARD_MANA_COST;
-    env->player.blizzard_cooldown = BLIZZARD_ACTIVATION_COOLDOWN;
+    env->player.mana -= BLIZZARD.mana_cost;
+    env->player.blizzard_cooldown = BLIZZARD.activation_cooldown;
     env->episode_blizzards_cast++;
     
     env->player.facing_x = facing_x;
@@ -432,14 +432,14 @@ void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y) {
     float blizzard_x = env->player.x + facing_x * 2.5f;
     float blizzard_y = env->player.y + facing_y * 2.5f;
     
-    for (uint16_t j = 0; j < MAX_MONSTERS; j++) {
+    for (uint16_t j = 0; j < MONSTER.max_count; j++) {
         if (env->monsters[j].alive) {
             float dist_sq = distance_squared(blizzard_x, blizzard_y, 
                                            env->monsters[j].x, env->monsters[j].y);
             if (dist_sq <= BLIZZARD_RADIUS_SQUARED) {
-                uint32_t damage_amount = (env->monsters[j].health <= BLIZZARD_DAMAGE) ? 
-                                       env->monsters[j].health : BLIZZARD_DAMAGE;
-                if (env->monsters[j].health <= BLIZZARD_DAMAGE) {
+                uint32_t damage_amount = (env->monsters[j].health <= BLIZZARD.damage) ? 
+                                       env->monsters[j].health : BLIZZARD.damage;
+                if (env->monsters[j].health <= BLIZZARD.damage) {
                     env->monsters[j].health = 0;
                     env->monsters[j].alive = 0;
                     env->monsters_killed++;
@@ -450,7 +450,7 @@ void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y) {
                     add_experience(env, EXP_PER_MONSTER_KILL);
                     
                     if ((float)rand() / RAND_MAX < env->config.item_drop_rate) {
-                        uint16_t gold_amount = GOLD_DROP_MIN + rand() % GOLD_DROP_RANGE;
+                        uint16_t gold_amount = VENDOR.drop_min + rand() % VENDOR.drop_range;
                         env->player.gold += gold_amount;
                         env->episode_gold_earned += gold_amount;
                     }
@@ -465,9 +465,9 @@ void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y) {
     if (env->boss.alive) {
         float dist_sq = distance_squared(blizzard_x, blizzard_y, env->boss.x, env->boss.y);
         if (dist_sq <= BLIZZARD_RADIUS_SQUARED) {
-            uint32_t damage_amount = (env->boss.health <= BLIZZARD_DAMAGE) ? 
-                                   env->boss.health : BLIZZARD_DAMAGE;
-            if (env->boss.health <= BLIZZARD_DAMAGE) {
+            uint32_t damage_amount = (env->boss.health <= BLIZZARD.damage) ? 
+                                   env->boss.health : BLIZZARD.damage;
+            if (env->boss.health <= BLIZZARD.damage) {
                 env->boss.health = 0;
                 env->boss.alive = 0;
                 env->episode_boss_kills++;
@@ -479,7 +479,7 @@ void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y) {
         }
     }
     
-    for (uint32_t i = 0; i < MAX_BLIZZARD_AREAS; i++) {
+    for (uint32_t i = 0; i < BLIZZARD.max_areas; i++) {
         if (!env->blizzard_areas[i].active) {
             env->blizzard_areas[i].x = blizzard_x;
             env->blizzard_areas[i].y = blizzard_y;
@@ -490,7 +490,7 @@ void handle_blizzard_with_direction(Rift* env, float facing_x, float facing_y) {
         }
     }
     
-    float completion = (float)env->monsters_killed / MONSTERS_TO_SPAWN;
+    float completion = (float)env->monsters_killed / MONSTER.spawn_count;
     if (completion >= RIFT_COMPLETION_THRESHOLD && !env->boss_spawned) {
         spawn_boss(env);
     }

@@ -43,12 +43,12 @@ static inline float normalize_to_unit(float value, float max_value) {
     return value / max_value;
 }
 
-static const float BLIZZARD_RADIUS_SQUARED = BLIZZARD_RADIUS * BLIZZARD_RADIUS;
+static const float BLIZZARD_RADIUS_SQUARED = 4.0f; // BLIZZARD.radius * BLIZZARD.radius = 2.0 * 2.0
 
 void init(Rift* env) {
     env->tick = 0;
     env->config = DEFAULT_CONFIG;
-    env->current_phase = PHASE_RIFT;
+    env->current_phase = PHASES.rift;
     env->current_rift_level = 1;
 }
 
@@ -79,11 +79,11 @@ void c_reset(Rift* env) {
     env->current_rift_level = 1;
     
     #if TOWN_TESTING_MODE
-        env->current_phase = PHASE_TOWN;
+        env->current_phase = PHASES.town;
         generate_town_map(env);
         generate_shop_inventory(env);
     #else
-        env->current_phase = PHASE_RIFT;
+        env->current_phase = PHASES.rift;
         generate_rift_map(env);
     #endif
     
@@ -91,8 +91,8 @@ void c_reset(Rift* env) {
         env->player.x = 15; 
         env->player.y = 19;
     #else
-        env->player.x = MAP_WIDTH / 2; 
-        env->player.y = MAP_HEIGHT / 2;
+        env->player.x = MAP.width / 2; 
+        env->player.y = MAP.height / 2;
     #endif
     
     env->town_interface.frames_remaining = TOWN_MODE_TIME_LIMIT;
@@ -226,7 +226,7 @@ void c_step(Rift* env) {
     env->player.prev_x = env->player.x;
     env->player.prev_y = env->player.y;
     
-    if (env->current_phase == PHASE_RIFT) {
+    if (env->current_phase == PHASES.rift) {
         spawn_monsters(env);
         update_monsters(env);
         update_projectiles(env);
@@ -249,14 +249,14 @@ void c_step(Rift* env) {
             env->episode_return += env->config.completion_reward;
             env->episode_completion_rewards += env->config.completion_reward;
             
-            uint16_t boss_gold = (GOLD_DROP_MIN + rand() % GOLD_DROP_RANGE) * 3; 
+            uint16_t boss_gold = (VENDOR.drop_min + rand() % VENDOR.drop_range) * 3; 
             env->player.gold += boss_gold;
             env->episode_gold_earned += boss_gold;
             
             transition_to_town(env);
             return;
         }
-    } else if (env->current_phase == PHASE_TOWN) {
+    } else if (env->current_phase == PHASES.town) {
         update_town_timer(env);
     }
     
@@ -281,20 +281,20 @@ void compute_observations(Rift* env) {
     
     env->observations[obs_idx++] = (float)env->player.health / env->player.max_health;
     env->observations[obs_idx++] = (float)env->player.mana / env->player.max_mana;
-    env->observations[obs_idx++] = env->player.x / MAP_WIDTH;
-    env->observations[obs_idx++] = env->player.y / MAP_HEIGHT;
-    env->observations[obs_idx++] = (float)env->player.gold / GOLD_NORMALIZATION;
+    env->observations[obs_idx++] = env->player.x / MAP.width;
+    env->observations[obs_idx++] = env->player.y / MAP.height;
+    env->observations[obs_idx++] = (float)env->player.gold / NORMALIZATION.gold;
     env->observations[obs_idx++] = env->player.facing_x;
     env->observations[obs_idx++] = env->player.facing_y;
     env->observations[obs_idx++] = env->player.movement_x;
     env->observations[obs_idx++] = env->player.movement_y;
     
-    float progress = (float)env->monsters_killed / MONSTERS_TO_SPAWN;
+    float progress = (float)env->monsters_killed / MONSTER.spawn_count;
     env->observations[obs_idx++] = progress;
     
     float nearest_enemy_dist = 100.0f;
     int nearby_enemies = 0;
-    for (uint16_t i = 0; i < MAX_MONSTERS; i++) {
+    for (uint16_t i = 0; i < MONSTER.max_count; i++) {
         if (env->monsters[i].alive) {
             float dist = distance(env->player.x, env->player.y, env->monsters[i].x, env->monsters[i].y);
             if (dist < nearest_enemy_dist) {
@@ -315,38 +315,38 @@ void compute_observations(Rift* env) {
         }
     }
     
-    env->observations[obs_idx++] = nearest_enemy_dist / DISTANCE_NORMALIZATION;
+    env->observations[obs_idx++] = nearest_enemy_dist / NORMALIZATION.distance;
     env->observations[obs_idx++] = (float)nearby_enemies / 10.0f;
     
-    env->observations[obs_idx++] = env->player.x / MAP_WIDTH;
-    env->observations[obs_idx++] = (MAP_WIDTH - 1 - env->player.x) / MAP_WIDTH;
-    env->observations[obs_idx++] = env->player.y / MAP_HEIGHT;
-    env->observations[obs_idx++] = (MAP_HEIGHT - 1 - env->player.y) / MAP_HEIGHT;
-    env->observations[obs_idx++] = env->current_phase == PHASE_TOWN ? 1.0f : 0.0f;
+    env->observations[obs_idx++] = env->player.x / MAP.width;
+    env->observations[obs_idx++] = (MAP.width - 1 - env->player.x) / MAP.width;
+    env->observations[obs_idx++] = env->player.y / MAP.height;
+    env->observations[obs_idx++] = (MAP.height - 1 - env->player.y) / MAP.height;
+    env->observations[obs_idx++] = env->current_phase == PHASES.town ? 1.0f : 0.0f;
     
-    float grid[GRID_OBS_SIZE];
+    float grid[OBSERVATION.grid_obs_size];
     int player_grid_center_x = (int)env->player.x;
     int player_grid_center_y = (int)env->player.y;
     
     memset(grid, 0, sizeof(grid));
     
-    int half_grid = GRID_SIZE / 2;
+    int half_grid = OBSERVATION.grid_size / 2;
     
-    if (env->current_phase == PHASE_RIFT) {
-        for (uint16_t i = 0; i < MAX_MONSTERS; i++) {
+    if (env->current_phase == PHASES.rift) {
+        for (uint16_t i = 0; i < MONSTER.max_count; i++) {
             if (env->monsters[i].alive) {
                 int monster_x = (int)env->monsters[i].x;
                 int monster_y = (int)env->monsters[i].y;
                 int gx = monster_x - player_grid_center_x + half_grid;
                 int gy = monster_y - player_grid_center_y + half_grid;
                 
-                if (gx >= 0 && gx < GRID_SIZE && gy >= 0 && gy < GRID_SIZE) {
+                if (gx >= 0 && gx < OBSERVATION.grid_size && gy >= 0 && gy < OBSERVATION.grid_size) {
                     switch (env->monsters[i].type) {
-                        case MONSTER_ZOMBIE: grid[gy * GRID_SIZE + gx] = 0.2f; break;
-                        case MONSTER_MAGE: grid[gy * GRID_SIZE + gx] = 0.4f; break;
-                        case MONSTER_HEAVY_MELEE: grid[gy * GRID_SIZE + gx] = 0.6f; break;
-                        case MONSTER_LIGHT: grid[gy * GRID_SIZE + gx] = 0.3f; break;
-                        case MONSTER_ELITE: grid[gy * GRID_SIZE + gx] = 0.8f; break;
+                        case MONSTER_ZOMBIE: grid[gy * OBSERVATION.grid_size + gx] = 0.2f; break;
+                        case MONSTER_MAGE: grid[gy * OBSERVATION.grid_size + gx] = 0.4f; break;
+                        case MONSTER_HEAVY_MELEE: grid[gy * OBSERVATION.grid_size + gx] = 0.6f; break;
+                        case MONSTER_LIGHT: grid[gy * OBSERVATION.grid_size + gx] = 0.3f; break;
+                        case MONSTER_ELITE: grid[gy * OBSERVATION.grid_size + gx] = 0.8f; break;
                     }
                 }
             }
@@ -358,53 +358,53 @@ void compute_observations(Rift* env) {
             int gx = boss_x - player_grid_center_x + half_grid;
             int gy = boss_y - player_grid_center_y + half_grid;
             
-            if (gx >= 0 && gx < GRID_SIZE && gy >= 0 && gy < GRID_SIZE) {
-                grid[gy * GRID_SIZE + gx] = 1.0f;
+            if (gx >= 0 && gx < OBSERVATION.grid_size && gy >= 0 && gy < OBSERVATION.grid_size) {
+                grid[gy * OBSERVATION.grid_size + gx] = 1.0f;
             }
         }
         
-        for (uint16_t i = 0; i < MAX_ITEMS; i++) {
+        for (uint16_t i = 0; i < POTIONS.max_items; i++) {
             if (env->items[i].active) {
                 int item_x = (int)env->items[i].x;
                 int item_y = (int)env->items[i].y;
                 int gx = item_x - player_grid_center_x + half_grid;
                 int gy = item_y - player_grid_center_y + half_grid;
                 
-                if (gx >= 0 && gx < GRID_SIZE && gy >= 0 && gy < GRID_SIZE && grid[gy * GRID_SIZE + gx] == 0.0f) {
-                    grid[gy * GRID_SIZE + gx] = -0.3f;
+                if (gx >= 0 && gx < OBSERVATION.grid_size && gy >= 0 && gy < OBSERVATION.grid_size && grid[gy * OBSERVATION.grid_size + gx] == 0.0f) {
+                    grid[gy * OBSERVATION.grid_size + gx] = -0.3f;
                 }
             }
         }
-    } else if (env->current_phase == PHASE_TOWN) {
+    } else if (env->current_phase == PHASES.town) {
         int vendor_gx = VENDOR_POSITION_X - player_grid_center_x + half_grid;
         int vendor_gy = VENDOR_POSITION_Y - player_grid_center_y + half_grid;
-        if (vendor_gx >= 0 && vendor_gx < GRID_SIZE && vendor_gy >= 0 && vendor_gy < GRID_SIZE) {
-            grid[vendor_gy * GRID_SIZE + vendor_gx] = 0.5f;
+        if (vendor_gx >= 0 && vendor_gx < OBSERVATION.grid_size && vendor_gy >= 0 && vendor_gy < OBSERVATION.grid_size) {
+            grid[vendor_gy * OBSERVATION.grid_size + vendor_gx] = 0.5f;
         }
         
         int portal_gx = RIFT_PORTAL_X - player_grid_center_x + half_grid;
         int portal_gy = RIFT_PORTAL_Y - player_grid_center_y + half_grid;
-        if (portal_gx >= 0 && portal_gx < GRID_SIZE && portal_gy >= 0 && portal_gy < GRID_SIZE) {
-            grid[portal_gy * GRID_SIZE + portal_gx] = 0.7f;
+        if (portal_gx >= 0 && portal_gx < OBSERVATION.grid_size && portal_gy >= 0 && portal_gy < OBSERVATION.grid_size) {
+            grid[portal_gy * OBSERVATION.grid_size + portal_gx] = 0.7f;
         }
     }
     
-    for (int gy = 0; gy < GRID_SIZE; gy++) {
-        for (int gx = 0; gx < GRID_SIZE; gx++) {
+    for (int gy = 0; gy < OBSERVATION.grid_size; gy++) {
+        for (int gx = 0; gx < OBSERVATION.grid_size; gx++) {
             int world_x = player_grid_center_x + (gx - half_grid);
             int world_y = player_grid_center_y + (gy - half_grid);
             
-            if (world_x < 0 || world_x >= MAP_WIDTH || world_y < 0 || world_y >= MAP_HEIGHT) {
-                grid[gy * GRID_SIZE + gx] = -1.0f;
+            if (world_x < 0 || world_x >= MAP.width || world_y < 0 || world_y >= MAP.height) {
+                grid[gy * OBSERVATION.grid_size + gx] = -1.0f;
             }
         }
     }
     
-    for (int i = 0; i < GRID_OBS_SIZE; i++) {
+    for (int i = 0; i < OBSERVATION.grid_obs_size; i++) {
         env->observations[obs_idx++] = grid[i];
     }
     
-    if (env->current_phase == PHASE_TOWN) {
+    if (env->current_phase == PHASES.town) {
         for (int i = 0; i < SHOP_ITEMS_COUNT; i++) {
             ShopItem* item = &env->shop_items[i];
             env->observations[obs_idx++] = item->available ? 1.0f : 0.0f;
@@ -441,14 +441,14 @@ void compute_observations(Rift* env) {
         env->observations[obs_idx++] = (float)env->hero_stats.level / MAX_HERO_LEVEL;
         env->observations[obs_idx++] = (float)env->hero_stats.stat_points_available / 20.0f;
         env->observations[obs_idx++] = (float)env->player.inventory_count / INVENTORY_SLOTS;
-        env->observations[obs_idx++] = env->town_interface.current_tab == TOWN_TAB_SHOP ? 1.0f : 0.0f;
-        env->observations[obs_idx++] = env->town_interface.character_mode == CHARACTER_MODE_EQUIPMENT ? 1.0f : 0.0f;
+        env->observations[obs_idx++] = env->town_interface.current_tab == TOWN_TAB.shop ? 1.0f : 0.0f;
+        env->observations[obs_idx++] = env->town_interface.character_mode == CHARACTER_MODE.equipment ? 1.0f : 0.0f;
         env->observations[obs_idx++] = (float)env->current_rift_level / 15.0f;
-        env->observations[obs_idx++] = (float)env->player.gold / GOLD_NORMALIZATION;
+        env->observations[obs_idx++] = (float)env->player.gold / NORMALIZATION.gold;
         env->observations[obs_idx++] = (float)env->town_interface.frames_remaining / TOWN_MODE_TIME_LIMIT;
         env->observations[obs_idx++] = (float)env->hero_stats.average_item_level / 200.0f;
     } else {
-        for (int i = 0; i < TOWN_OBS_SIZE; i++) {
+        for (int i = 0; i < OBSERVATION.town_obs_size; i++) {
             env->observations[obs_idx++] = 0.0f;
         }
     }

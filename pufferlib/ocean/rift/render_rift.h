@@ -6,31 +6,26 @@
 static void render_background(Rift* env, float cell_size) {
     if (!env->client || !env->client->sprites.tileset.id) {
         Color bg_color = RIFT_COLORS.background;
-        DrawRectangle(0, 0, MAP_WIDTH * cell_size, MAP_HEIGHT * cell_size, bg_color);
+        DrawRectangle(0, 0, MAP.width * cell_size, MAP.height * cell_size, bg_color);
         return;
     }
     
     SpriteSystem* sprites = &env->client->sprites;
     
-    for (uint32_t y = 0; y < MAP_HEIGHT; y++) {
-        for (uint32_t x = 0; x < MAP_WIDTH; x++) {
-            uint16_t map_index = y * MAP_WIDTH + x;
+    for (uint32_t y = 0; y < MAP.height; y++) {
+        for (uint32_t x = 0; x < MAP.width; x++) {
+            uint16_t map_index = y * MAP.width + x;
             uint32_t cell_type = env->map[map_index];
             
             uint32_t tile_id;
-            switch (cell_type) {
-                case CELL_WALL:
-                    tile_id = TILE_STONE_WALL;
-                    break;
-                case CELL_DOOR:
-                    tile_id = TILE_STONE_DOOR;
-                    break;
-                case CELL_VENDOR:
-                    tile_id = (env->current_phase == PHASE_TOWN) ? TILE_VENDOR_STALL : TILE_STONE_FLOOR;
-                    break;
-                default:
-                    tile_id = (env->current_phase == PHASE_TOWN) ? TILE_TOWN_FLOOR : TILE_STONE_FLOOR;
-                    break;
+            if (cell_type == CELLS.wall) {
+                tile_id = TILE_IDS.stone_wall;
+            } else if (cell_type == CELLS.door) {
+                tile_id = TILE_IDS.stone_door;
+            } else if (cell_type == CELLS.vendor) {
+                tile_id = (env->current_phase == PHASES.town) ? TILE_IDS.vendor_stall : TILE_IDS.stone_floor;
+            } else {
+                tile_id = (env->current_phase == PHASES.town) ? TILE_IDS.town_floor : TILE_IDS.stone_floor;
             }
             
             draw_sprite_tile(sprites->tileset, tile_id, x * cell_size, y * cell_size, cell_size);
@@ -136,7 +131,7 @@ static void render_player(Rift* env, float cell_size) {
 }
 
 static void render_monsters(Rift* env, float cell_size) {
-    for (uint16_t i = 0; i < MAX_MONSTERS; i++) {
+    for (uint16_t i = 0; i < MONSTER.max_count; i++) {
         if (!env->monsters[i].alive) continue;
         
         Vector2 screen_pos = grid_to_screen(env->monsters[i].x, env->monsters[i].y, cell_size);
@@ -157,10 +152,10 @@ static void render_monsters(Rift* env, float cell_size) {
             DrawTexturePro(env->client->sprites.monsters[monster_type], source, dest, 
                           (Vector2){0, 0}, 0.0f, WHITE);
             
-            if (monster_type == MONSTER_ELITE) {
-                float glow = calculate_glow(env->tick, GLOW_SPEED, 0.0f);
+            if (monster_type == MONSTERS.elite) {
+                float glow = calculate_glow(env->tick, GLOW_EFFECT.speed, 0.0f);
                 DrawCircleLines(dest.x + dest.width/2, dest.y + dest.height/2, 
-                              dest.width/2 * glow, (Color){255, 255, 255, GLOW_ALPHA});
+                              dest.width/2 * glow, (Color){255, 255, 255, GLOW_EFFECT.alpha});
             }
         } else {
             screen_pos.x += cell_size * 0.5f;
@@ -174,9 +169,9 @@ static void render_monsters(Rift* env, float cell_size) {
         uint32_t bar_width = (uint32_t)half_cell;
         uint32_t half_bar_width = bar_width >> 1;
         int16_t bar_x = screen_pos.x + half_cell - half_bar_width;
-        int16_t bar_y = screen_pos.y - third_cell - HEALTH_BAR_OFFSET;
+        int16_t bar_y = screen_pos.y - third_cell - HEALTH_BAR_RENDER.offset;
         
-        draw_health_bar(bar_x, bar_y, bar_width, HEALTH_BAR_HEIGHT, health_ratio);
+        draw_health_bar(bar_x, bar_y, bar_width, HEALTH_BAR_RENDER.height, health_ratio);
     }
 }
 
@@ -205,8 +200,8 @@ static void render_boss(Rift* env, float cell_size) {
         
         DrawTexturePro(env->client->sprites.boss_texture, source, dest, (Vector2){0, 0}, 0.0f, WHITE);
         
-        DrawCircleLines(dest.x + dest.width/2, dest.y + dest.height/2, cell_size * BOSS_SIZE_MULT, 
-                       (Color){ARMOR_COLOR_R, 0, ARMOR_COLOR_B, BOSS_AURA_ALPHA});
+        DrawCircleLines(dest.x + dest.width/2, dest.y + dest.height/2, cell_size * BOSS_EFFECT.size_multiplier, 
+                       (Color){PLAYER_COLORS.armor_r, 0, PLAYER_COLORS.armor_b, BOSS_EFFECT.aura_alpha});
     } else {
         screen_pos.x += cell_size * 0.5f;
         screen_pos.y += cell_size * 0.5f;
@@ -217,13 +212,13 @@ static void render_boss(Rift* env, float cell_size) {
     uint32_t bar_width = (uint32_t)cell_size;
     uint32_t half_bar_width = bar_width >> 1;
     int16_t bar_x = screen_pos.x + cell_size/2 - half_bar_width;
-    int16_t bar_y = screen_pos.y - cell_size/2 - BOSS_HEALTH_BAR_OFFSET;
+    int16_t bar_y = screen_pos.y - cell_size/2 - BOSS_EFFECT.health_bar_offset;
     
-    draw_health_bar(bar_x, bar_y, bar_width, BOSS_HEALTH_BAR_HEIGHT, health_ratio);
+    draw_health_bar(bar_x, bar_y, bar_width, BOSS_EFFECT.health_bar_height, health_ratio);
 }
 
 static void render_items(Rift* env, float cell_size) {
-    for (uint32_t i = 0; i < MAX_ITEMS; i++) {
+    for (uint32_t i = 0; i < POTIONS.max_items; i++) {
         if (!env->items[i].active) continue;
         
         Vector2 screen_pos = grid_to_screen(env->items[i].x, env->items[i].y, cell_size);
@@ -238,7 +233,7 @@ static void render_items(Rift* env, float cell_size) {
                 cell_size/2
             };
             
-            float glow = calculate_glow(env->tick, ITEM_GLOW_SPEED, i);
+            float glow = calculate_glow(env->tick, ITEM_EFFECT.glow_speed, i);
             dest.width *= glow;
             dest.height *= glow;
             dest.x -= (dest.width - cell_size/2) / 2;
@@ -263,9 +258,9 @@ static void render_items(Rift* env, float cell_size) {
 
 static void render_projectiles(Rift* env, float cell_size) {
     float half_cell = cell_size * 0.5f;
-    float sixth_cell = cell_size * PROJECTILE_SIXTH;
+    float sixth_cell = cell_size * 0.167f;
     
-    for (uint32_t i = 0; i < MAX_PROJECTILES; i++) {
+    for (uint32_t i = 0; i < PROJECTILE.max_projectiles; i++) {
         if (!env->projectiles[i].active) continue;
         
         Vector2 screen_pos = grid_to_screen(env->projectiles[i].x, env->projectiles[i].y, cell_size);
@@ -277,58 +272,44 @@ static void render_projectiles(Rift* env, float cell_size) {
         Color core_color;
         float size_multiplier;
         
-        switch (env->projectiles[i].type) {
-            case PROJECTILE_FIREBALL:
-                projectile_color = (Color){FIREBALL_COLOR_R, FIREBALL_COLOR_G, 0, 255};
-                halo_color = (Color){HALO_COLOR_R, HALO_COLOR_G, 0, 255};
-                core_color = (Color){CORE_COLOR_R, CORE_COLOR_G, 0, 255};
-                size_multiplier = calculate_pulse(env->tick + i, FIREBALL_PULSE_SPEED, FIREBALL_PULSE_BASE, FIREBALL_PULSE_AMPLITUDE);
-                break;
-                
-            case PROJECTILE_ICE_SHARD:
-                projectile_color = (Color){150, 200, 255, 255}; // Light blue
-                halo_color = (Color){200, 230, 255, 255};        // Pale blue
-                core_color = (Color){255, 255, 255, 255};        // White
-                size_multiplier = 0.8f;
-                break;
-                
-            case PROJECTILE_STONE_CHUNK:
-                projectile_color = (Color){139, 115, 85, 255};  // Brown
-                halo_color = (Color){169, 169, 169, 255};       // Gray
-                core_color = (Color){101, 67, 33, 255};         // Dark brown
-                size_multiplier = 1.2f;
-                break;
-                
-            case PROJECTILE_ENERGY_BOLT:
-                projectile_color = (Color){255, 255, 0, 255};   // Yellow
-                halo_color = (Color){255, 215, 0, 255};         // Gold
-                core_color = (Color){255, 255, 200, 255};       // Light yellow
-                size_multiplier = 0.9f;
-                break;
-                
-            case PROJECTILE_DARK_ORB:
-                projectile_color = (Color){163, 53, 238, 255};  // Purple
-                halo_color = (Color){138, 43, 226, 255};        // Blue violet
-                core_color = (Color){75, 0, 130, 255};          // Indigo
-                size_multiplier = 1.1f;
-                break;
-                
-            case PROJECTILE_MELEE_STRIKE:
-                projectile_color = (Color){255, 0, 0, 255};     // Red
-                halo_color = (Color){255, 69, 0, 255};          // Orange red
-                core_color = (Color){255, 100, 100, 255};       // Light red
-                size_multiplier = 0.7f;
-                break;
-                
-            default:
-                projectile_color = RED;
-                halo_color = (Color){HALO_COLOR_R, HALO_COLOR_G, 0, 255};
-                core_color = (Color){CORE_COLOR_R, CORE_COLOR_G, 0, 255};
-                size_multiplier = 1.0f;
-                break;
+        if (env->projectiles[i].type == PROJECTILE_TYPES.fireball) {
+            projectile_color = (Color){EFFECT_COLORS_EXTENDED.fireball_r, EFFECT_COLORS_EXTENDED.fireball_g, 0, 255};
+            halo_color = (Color){EFFECT_COLORS_EXTENDED.halo_r, EFFECT_COLORS_EXTENDED.halo_g, 0, 255};
+            core_color = (Color){EFFECT_COLORS_EXTENDED.core_r, EFFECT_COLORS_EXTENDED.core_g, 0, 255};
+            size_multiplier = calculate_pulse(env->tick + i, PROJECTILE_EFFECT.pulse_speed, PROJECTILE_EFFECT.pulse_base, PROJECTILE_EFFECT.pulse_amplitude);
+        } else if (env->projectiles[i].type == PROJECTILE_TYPES.ice_shard) {
+            projectile_color = (Color){150, 200, 255, 255};
+            halo_color = (Color){200, 230, 255, 255};
+            core_color = (Color){255, 255, 255, 255};
+            size_multiplier = 0.8f;
+        } else if (env->projectiles[i].type == PROJECTILE_TYPES.stone_chunk) {
+            projectile_color = (Color){MATERIAL_COLORS_EXTENDED.brown_handle_light_r, MATERIAL_COLORS_EXTENDED.brown_handle_light_g, MATERIAL_COLORS_EXTENDED.brown_handle_light_b, 255};
+            halo_color = (Color){QUALITY_COLORS.silver, QUALITY_COLORS.silver, QUALITY_COLORS.silver, 255};
+            core_color = (Color){MATERIAL_COLORS_EXTENDED.brown_handle_dark_r, MATERIAL_COLORS_EXTENDED.brown_handle_dark_g, MATERIAL_COLORS_EXTENDED.brown_handle_dark_b, 255};
+            size_multiplier = 1.2f;
+        } else if (env->projectiles[i].type == PROJECTILE_TYPES.energy_bolt) {
+            projectile_color = (Color){255, 255, 0, 255};
+            halo_color = (Color){255, 215, 0, 255};
+            core_color = (Color){255, 255, 200, 255};
+            size_multiplier = 0.9f;
+        } else if (env->projectiles[i].type == PROJECTILE_TYPES.dark_orb) {
+            projectile_color = (Color){QUALITY_COLORS.epic_purple_r, QUALITY_COLORS.epic_purple_g, QUALITY_COLORS.epic_purple_b, 255};
+            halo_color = (Color){PLAYER_COLORS.player_r, PLAYER_COLORS.player_g, PLAYER_COLORS.player_b, 255};
+            core_color = (Color){PLAYER_COLORS.armor_r, PLAYER_COLORS.armor_g, PLAYER_COLORS.armor_b, 255};
+            size_multiplier = 1.1f;
+        } else if (env->projectiles[i].type == PROJECTILE_TYPES.melee_strike) {
+            projectile_color = (Color){255, 0, 0, 255};
+            halo_color = (Color){EFFECT_COLORS_EXTENDED.fireball_r, EFFECT_COLORS_EXTENDED.fireball_g, 0, 255};
+            core_color = (Color){EFFECT_COLORS_EXTENDED.trail_r, EFFECT_COLORS_EXTENDED.trail_g, 100, 255};
+            size_multiplier = 0.7f;
+        } else {
+            projectile_color = RED;
+            halo_color = (Color){EFFECT_COLORS_EXTENDED.halo_r, EFFECT_COLORS_EXTENDED.halo_g, 0, 255};
+            core_color = (Color){EFFECT_COLORS_EXTENDED.core_r, EFFECT_COLORS_EXTENDED.core_g, 0, 255};
+            size_multiplier = 1.0f;
         }
         
-        float lifetime_ratio = (float)env->projectiles[i].lifetime / PROJECTILE_LIFETIME;
+        float lifetime_ratio = (float)env->projectiles[i].lifetime / PROJECTILE_EFFECT.lifetime;
         uint32_t alpha = alpha_from_ratio(lifetime_ratio);
         projectile_color = fade_color(projectile_color, alpha);
         
@@ -340,44 +321,44 @@ static void render_projectiles(Rift* env, float cell_size) {
         halo_color = fade_color(halo_color, half_alpha);
         core_color = fade_color(core_color, alpha);
         
-        DrawCircle(screen_pos.x, screen_pos.y, radius + PROJECTILE_HALO_OFFSET, halo_color);
+        DrawCircle(screen_pos.x, screen_pos.y, radius + PROJECTILE_EFFECT.halo_offset, halo_color);
         DrawCircle(screen_pos.x, screen_pos.y, radius, projectile_color);
         DrawCircle(screen_pos.x, screen_pos.y, half_radius, core_color);
         
         Vector2 trail_end = {
-            screen_pos.x - env->projectiles[i].vel_x * TRAIL_LENGTH,
-            screen_pos.y - env->projectiles[i].vel_y * TRAIL_LENGTH
+            screen_pos.x - env->projectiles[i].vel_x * PROJECTILE_EFFECT.trail_length,
+            screen_pos.y - env->projectiles[i].vel_y * PROJECTILE_EFFECT.trail_length
         };
-        DrawLineEx(screen_pos, trail_end, TRAIL_WIDTH, (Color){TRAIL_COLOR_R, TRAIL_COLOR_G, 0, third_alpha});
+        DrawLineEx(screen_pos, trail_end, PROJECTILE_EFFECT.trail_width, (Color){EFFECT_COLORS_EXTENDED.trail_r, EFFECT_COLORS_EXTENDED.trail_g, 0, third_alpha});
     }
 }
 
 static void render_blizzard_areas(Rift* env, float cell_size) {
     float half_cell = cell_size * 0.5f;
     
-    for (uint32_t i = 0; i < MAX_BLIZZARD_AREAS; i++) {
+    for (uint32_t i = 0; i < BLIZZARD.max_areas; i++) {
         if (!env->blizzard_areas[i].active) continue;
         
         Vector2 screen_pos = grid_to_screen(env->blizzard_areas[i].x, env->blizzard_areas[i].y, cell_size);
         screen_pos.x += half_cell;
         screen_pos.y += half_cell;
         
-        float duration_ratio = (float)env->blizzard_areas[i].duration / BLIZZARD_DURATION;
-        uint32_t alpha = (uint32_t)(BLIZZARD_BASE_ALPHA * duration_ratio);
-        float radius = BLIZZARD_RADIUS * cell_size;
+        float duration_ratio = (float)env->blizzard_areas[i].duration / BLIZZARD.duration;
+        uint32_t alpha = (uint32_t)(BLIZZARD_EFFECT.base_alpha * duration_ratio);
+        float radius = BLIZZARD.radius * cell_size;
         uint32_t third_alpha = alpha / 3;
         uint32_t half_alpha = alpha >> 1;
         
-        Color base_color = (Color){BLIZZARD_BASE_COLOR_R, BLIZZARD_BASE_COLOR_G, BLIZZARD_BASE_COLOR_B, third_alpha};
+        Color base_color = (Color){EFFECT_COLORS_EXTENDED.blizzard_base_r, EFFECT_COLORS_EXTENDED.blizzard_base_g, EFFECT_COLORS_EXTENDED.blizzard_base_b, third_alpha};
         Color ice_shard_color = (Color){255, 255, 255, alpha};
-        Color frost_color = (Color){FROST_COLOR_R, FROST_COLOR_G, FROST_COLOR_B, half_alpha};
+        Color frost_color = (Color){EFFECT_COLORS_EXTENDED.frost_r, EFFECT_COLORS_EXTENDED.frost_g, EFFECT_COLORS_EXTENDED.frost_b, half_alpha};
         
         DrawCircle(screen_pos.x, screen_pos.y, radius, base_color);
         
         uint16_t radius_int = (uint16_t)radius;
         uint16_t radius_double = radius_int << 1;
         
-        for (uint32_t j = 0; j < ICE_SHARD_COUNT; j++) {
+        for (uint32_t j = 0; j < BLIZZARD_EFFECT.ice_shard_count; j++) {
             int16_t random_offset_x = (rand() % radius_double) - radius_int;
             int16_t random_offset_y = (rand() % radius_double) - radius_int;
             float distance_squared = random_offset_x * random_offset_x + random_offset_y * random_offset_y;
@@ -386,15 +367,15 @@ static void render_blizzard_areas(Rift* env, float cell_size) {
                 float x = screen_pos.x + random_offset_x;
                 float y = screen_pos.y + random_offset_y;
                 
-                uint16_t fall_offset = ((env->tick + j * SHARD_TIMING_MULT) % SHARD_CYCLE_FRAMES);
-                y += fall_offset * SHARD_FALL_SPEED;
+                uint16_t fall_offset = ((env->tick + j * BLIZZARD_EFFECT.shard_timing_mult) % BLIZZARD_EFFECT.shard_cycle_frames);
+                y += fall_offset * BLIZZARD_EFFECT.shard_fall_speed;
                 
-                uint32_t shard_size = SHARD_SIZE_MIN + (rand() % SHARD_SIZE_RANGE);
+                uint32_t shard_size = BLIZZARD_EFFECT.shard_size_min + (rand() % BLIZZARD_EFFECT.shard_size_range);
                 DrawCircle(x, y, shard_size, ice_shard_color);
                 
                 if ((rand() & 3) == 0) {
-                    DrawLine(x - FROST_LINE_SIZE, y - FROST_LINE_SIZE, x + FROST_LINE_SIZE, y + FROST_LINE_SIZE, frost_color);
-                    DrawLine(x - FROST_LINE_SIZE, y + FROST_LINE_SIZE, x + FROST_LINE_SIZE, y - FROST_LINE_SIZE, frost_color);
+                    DrawLine(x - BLIZZARD_EFFECT.frost_line_size, y - BLIZZARD_EFFECT.frost_line_size, x + BLIZZARD_EFFECT.frost_line_size, y + BLIZZARD_EFFECT.frost_line_size, frost_color);
+                    DrawLine(x - BLIZZARD_EFFECT.frost_line_size, y + BLIZZARD_EFFECT.frost_line_size, x + BLIZZARD_EFFECT.frost_line_size, y - BLIZZARD_EFFECT.frost_line_size, frost_color);
                 }
             }
         }
