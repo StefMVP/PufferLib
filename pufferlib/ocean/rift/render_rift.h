@@ -3,18 +3,74 @@
 
 #include "render_core.h"
 
+typedef struct {
+    Color dark_stone, darker_stone;
+    Color wall_tint, door_tint, vendor_tint, town_tint;
+    Color rift_base_tint;
+} TileColorScheme;
+
+typedef struct {
+    Color mana_aura, hurt_effect;
+    Color cast_effect;
+    float half_cell_divisor, quarter_cell_divisor, third_cell_divisor;
+    float mana_aura_divisor;
+} PlayerRenderConfig;
+
+typedef struct {
+    Color elite_glow, mage_tint, heavy_tint;
+    Color elite_shadow, mage_shadow, heavy_shadow;
+    Color health_bg_high, health_bg_med, health_bg_low;
+    Color hurt_effect;
+    float low_health_threshold, med_health_threshold;
+    float hurt_pulse_speed;
+} MonsterRenderConfig;
+
+static const TileColorScheme TILE_COLORS = {
+    .dark_stone = {25, 22, 18, 255},
+    .darker_stone = {15, 13, 10, 255},
+    .wall_tint = {95, 85, 75, 255},
+    .door_tint = {120, 90, 60, 255},
+    .vendor_tint = {88, 80, 70, 255},
+    .town_tint = {88, 82, 70, 255},
+    .rift_base_tint = {85, 85, 85, 255}
+};
+
+static const PlayerRenderConfig PLAYER_RENDER = {
+    .mana_aura = {100, 150, 255, 60},
+    .hurt_effect = {255, 0, 0, 255},
+    .cast_effect = {173, 216, 230, 80},
+    .half_cell_divisor = 2.0f,
+    .quarter_cell_divisor = 4.0f,
+    .third_cell_divisor = 3.0f,
+    .mana_aura_divisor = 2.5f
+};
+
+static const MonsterRenderConfig MONSTER_RENDER = {
+    .elite_glow = {255, 220, 220, 255},
+    .mage_tint = {200, 180, 255, 255},
+    .heavy_tint = {255, 200, 180, 255},
+    .elite_shadow = {60, 20, 20, 140},
+    .mage_shadow = {20, 20, 60, 120},
+    .heavy_shadow = {40, 25, 10, 130},
+    .health_bg_high = {50, 200, 50, 255},
+    .health_bg_med = {200, 150, 50, 255},
+    .health_bg_low = {200, 50, 50, 255},
+    .hurt_effect = {255, 50, 50, 60},
+    .low_health_threshold = 0.25f,
+    .med_health_threshold = 0.5f,
+    .hurt_pulse_speed = 8.0f
+};
+
 static void render_background(Rift* env, float cell_size) {
     float map_width = MAP.width * cell_size;
     float map_height = MAP.height * cell_size;
     
     for (int y = 0; y < map_height; y++) {
         float t = (float)y / map_height;
-        Color dark_stone = {25, 22, 18, 255};
-        Color darker_stone = {15, 13, 10, 255};
         Color current = {
-            (uint32_t)(dark_stone.r * (1-t) + darker_stone.r * t),
-            (uint32_t)(dark_stone.g * (1-t) + darker_stone.g * t),
-            (uint32_t)(dark_stone.b * (1-t) + darker_stone.b * t),
+            (uint32_t)(TILE_COLORS.dark_stone.r * (1-t) + TILE_COLORS.darker_stone.r * t),
+            (uint32_t)(TILE_COLORS.dark_stone.g * (1-t) + TILE_COLORS.darker_stone.g * t),
+            (uint32_t)(TILE_COLORS.dark_stone.b * (1-t) + TILE_COLORS.darker_stone.b * t),
             255
         };
         DrawRectangle(0, y, map_width, 1, current);
@@ -40,31 +96,30 @@ static void render_background(Rift* env, float cell_size) {
             
             if (cell_type == CELLS.wall) {
                 tile_id = TILE_IDS.stone_wall;
-                tint = (Color){95, 85, 75, 255};
+                tint = TILE_COLORS.wall_tint;
                 DrawRectangle(tile_x + 1, tile_y + 1, cell_size - 2, cell_size - 2, (Color){10, 8, 6, 100});
             } else if (cell_type == CELLS.door) {
                 tile_id = TILE_IDS.stone_door;
-                tint = (Color){120, 90, 60, 255};
+                tint = TILE_COLORS.door_tint;
                 float door_glow = time_pulse * 0.8f + 0.2f;
                 tint.r *= door_glow; tint.g *= door_glow; tint.b *= door_glow;
             } else if (cell_type == CELLS.vendor) {
                 tile_id = (env->current_phase == PHASES.town) ? TILE_IDS.vendor_stall : TILE_IDS.stone_floor;
-                tint = (Color){88, 80, 70, 255};
+                tint = TILE_COLORS.vendor_tint;
             } else {
                 tile_id = (env->current_phase == PHASES.town) ? TILE_IDS.town_floor : TILE_IDS.stone_floor;
                 
                 if (env->current_phase == PHASES.rift) {
                     float distance_from_top = (float)y / MAP.height;
-                    float distance_from_left = (float)x / MAP.width;
                     
-                    float base_gray = 85 + distance_from_top * 15;
+                    float base_gray = TILE_COLORS.rift_base_tint.r + distance_from_top * 15;
                     float variation = sinf(x * 0.2f + y * 0.15f) * 8;
                     
                     uint8_t gray_value = (uint8_t)(base_gray + variation);
                     tint = (Color){gray_value, gray_value, gray_value, 255};
                     
                 } else {
-                    tint = (Color){88, 82, 70, 255};
+                    tint = TILE_COLORS.town_tint;
                 }
             }
             
@@ -81,7 +136,7 @@ static void render_background(Rift* env, float cell_size) {
 static void render_player(Rift* env, float cell_size) {
     if (!env->client || !env->client->sprites.hero_idle.id) {
         Vector2 screen_pos = grid_to_screen(env->player.x, env->player.y, cell_size);
-        float half_cell = cell_size * 0.5f;
+        float half_cell = cell_size / PLAYER_RENDER.half_cell_divisor;
         screen_pos.x += half_cell;
         screen_pos.y += half_cell;
         
@@ -91,22 +146,22 @@ static void render_player(Rift* env, float cell_size) {
         float health_ratio = (float)env->player.health / env->player.max_health;
         if (health_ratio < 0.3f) {
             float hurt_pulse = sinf(GetTime() * 6.0f) * 0.4f + 0.6f;
-            player_color.r = 255;
+            player_color.r = PLAYER_RENDER.hurt_effect.r;
             player_color.g *= hurt_pulse;
             player_color.b *= hurt_pulse;
         }
         
         float mana_glow = (float)env->player.mana / env->player.max_mana;
-        Color mana_aura = {100, 150, 255, (uint8_t)(60 * mana_glow)};
-        DrawCircle(screen_pos.x, screen_pos.y, cell_size/2.5f, mana_aura);
+        Color mana_aura = {PLAYER_RENDER.mana_aura.r, PLAYER_RENDER.mana_aura.g, PLAYER_RENDER.mana_aura.b, (uint8_t)(PLAYER_RENDER.mana_aura.a * mana_glow)};
+        DrawCircle(screen_pos.x, screen_pos.y, cell_size / PLAYER_RENDER.mana_aura_divisor, mana_aura);
         
-        draw_shadow(screen_pos.x, screen_pos.y, cell_size/3, SHADOW_RENDER.offset, SHADOW_RENDER.alpha + 20);
-        DrawCircle(screen_pos.x, screen_pos.y, cell_size/3, player_color);
-        DrawCircle(screen_pos.x, screen_pos.y, cell_size/4, armor_color);
+        draw_shadow(screen_pos.x, screen_pos.y, cell_size / PLAYER_RENDER.third_cell_divisor, SHADOW_RENDER.offset, SHADOW_RENDER.alpha + 20);
+        DrawCircle(screen_pos.x, screen_pos.y, cell_size / PLAYER_RENDER.third_cell_divisor, player_color);
+        DrawCircle(screen_pos.x, screen_pos.y, cell_size / PLAYER_RENDER.quarter_cell_divisor, armor_color);
         
         if (env->player.blizzard_cooldown > 0) {
             float cast_intensity = (float)env->player.blizzard_cooldown / 20.0f;
-            DrawCircle(screen_pos.x, screen_pos.y, cell_size/3 + 3, (Color){173, 216, 230, (uint8_t)(80 * cast_intensity)});
+            DrawCircle(screen_pos.x, screen_pos.y, cell_size / PLAYER_RENDER.third_cell_divisor + 3, (Color){PLAYER_RENDER.cast_effect.r, PLAYER_RENDER.cast_effect.g, PLAYER_RENDER.cast_effect.b, (uint8_t)(PLAYER_RENDER.cast_effect.a * cast_intensity)});
         }
         
         return;
@@ -140,13 +195,13 @@ static void render_player(Rift* env, float cell_size) {
         
         switch (sprites->hero_animation_state) {
             case HERO_ANIM_IDLE:
-                if (sprites->hero_frame >= HERO_ANIMATION.idle_frames) sprites->hero_frame = 0;
+                if ((uint32_t)sprites->hero_frame >= HERO_ANIMATION.idle_frames) sprites->hero_frame = 0;
                 break;
             case HERO_ANIM_WALK:
-                if (sprites->hero_frame >= HERO_ANIMATION.walk_frames) sprites->hero_frame = 0;
+                if ((uint32_t)sprites->hero_frame >= HERO_ANIMATION.walk_frames) sprites->hero_frame = 0;
                 break;
             case HERO_ANIM_CAST:
-                if (sprites->hero_frame >= HERO_ANIMATION.cast_frames) {
+                if ((uint32_t)sprites->hero_frame >= HERO_ANIMATION.cast_frames) {
                     sprites->hero_animation_state = HERO_ANIMATION.idle_state;
                     sprites->hero_frame = 0;
                 }
@@ -172,7 +227,7 @@ static void render_player(Rift* env, float cell_size) {
             break;
     }
     
-    if (sprites->hero_frame >= max_frames) sprites->hero_frame = 0;
+    if ((uint32_t)sprites->hero_frame >= max_frames) sprites->hero_frame = 0;
     
     Rectangle source = {
         sprites->hero_frame * SPRITE_SIZE,

@@ -22,106 +22,106 @@ void init_hero_stats(Rift* env) {
     env->equipment.weapon_type = EQUIPMENT.weapon;
     env->equipment.weapon_quality = QUALITY.common;
     env->equipment.weapon_level = 1;
-    env->equipment.weapon_stat_bonuses[0] = 2;
-    env->equipment.weapon_stat_bonuses[1] = 0;
-    env->equipment.weapon_stat_bonuses[2] = 0;
-    env->equipment.weapon_stat_bonuses[3] = 0;
+    env->equipment.weapon_stat_bonuses[STAT_IDX.strength] = 2;
+    env->equipment.weapon_stat_bonuses[STAT_IDX.dexterity] = 0;
+    env->equipment.weapon_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.weapon_stat_bonuses[STAT_IDX.vitality] = 0;
     
     env->equipment.offhand_type = EQUIPMENT.offhand;
     env->equipment.offhand_quality = QUALITY.common;
     env->equipment.offhand_level = 1;
-    env->equipment.offhand_stat_bonuses[0] = 0;
-    env->equipment.offhand_stat_bonuses[1] = 0;
-    env->equipment.offhand_stat_bonuses[2] = 0;
-    env->equipment.offhand_stat_bonuses[3] = 1;
+    env->equipment.offhand_stat_bonuses[STAT_IDX.strength] = 0;
+    env->equipment.offhand_stat_bonuses[STAT_IDX.dexterity] = 0;
+    env->equipment.offhand_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.offhand_stat_bonuses[STAT_IDX.vitality] = 1;
     
     env->equipment.ring_left_type = EQUIPMENT.ring_left;
     env->equipment.ring_left_quality = QUALITY.common;
     env->equipment.ring_left_level = 1;
-    env->equipment.ring_left_stat_bonuses[0] = 1;
-    env->equipment.ring_left_stat_bonuses[1] = 0;
-    env->equipment.ring_left_stat_bonuses[2] = 0;
-    env->equipment.ring_left_stat_bonuses[3] = 0;
+    env->equipment.ring_left_stat_bonuses[STAT_IDX.strength] = 1;
+    env->equipment.ring_left_stat_bonuses[STAT_IDX.dexterity] = 0;
+    env->equipment.ring_left_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.ring_left_stat_bonuses[STAT_IDX.vitality] = 0;
     
     env->equipment.ring_right_type = EQUIPMENT.ring_right;
     env->equipment.ring_right_quality = QUALITY.common;
     env->equipment.ring_right_level = 1;
-    env->equipment.ring_right_stat_bonuses[0] = 0;
-    env->equipment.ring_right_stat_bonuses[1] = 0;
-    env->equipment.ring_right_stat_bonuses[2] = 1;
-    env->equipment.ring_right_stat_bonuses[3] = 0;
+    env->equipment.ring_right_stat_bonuses[STAT_IDX.strength] = 0;
+    env->equipment.ring_right_stat_bonuses[STAT_IDX.dexterity] = 0;
+    env->equipment.ring_right_stat_bonuses[STAT_IDX.intelligence] = 1;
+    env->equipment.ring_right_stat_bonuses[STAT_IDX.vitality] = 0;
     
     env->equipment.amulet_type = EQUIPMENT.amulet;
     env->equipment.amulet_quality = QUALITY.common;
     env->equipment.amulet_level = 1;
-    env->equipment.amulet_stat_bonuses[0] = 0;
-    env->equipment.amulet_stat_bonuses[1] = 1;
-    env->equipment.amulet_stat_bonuses[2] = 0;
-    env->equipment.amulet_stat_bonuses[3] = 0;
+    env->equipment.amulet_stat_bonuses[STAT_IDX.strength] = 0;
+    env->equipment.amulet_stat_bonuses[STAT_IDX.dexterity] = 1;
+    env->equipment.amulet_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.amulet_stat_bonuses[STAT_IDX.vitality] = 0;
     
     env->equipment.boots_type = EQUIPMENT.boots;
     env->equipment.boots_quality = QUALITY.common;
     env->equipment.boots_level = 1;
-    env->equipment.boots_stat_bonuses[0] = 0;
-    env->equipment.boots_stat_bonuses[1] = 0;
-    env->equipment.boots_stat_bonuses[2] = 0;
-    env->equipment.boots_stat_bonuses[3] = 1;
+    env->equipment.boots_stat_bonuses[STAT_IDX.strength] = 0;
+    env->equipment.boots_stat_bonuses[STAT_IDX.dexterity] = 0;
+    env->equipment.boots_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.boots_stat_bonuses[STAT_IDX.vitality] = 1;
     
     env->equipment.gloves_type = EQUIPMENT.gloves;
     env->equipment.gloves_quality = QUALITY.common;
     env->equipment.gloves_level = 1;
-    env->equipment.gloves_stat_bonuses[0] = 0;
-    env->equipment.gloves_stat_bonuses[1] = 1;
-    env->equipment.gloves_stat_bonuses[2] = 0;
-    env->equipment.gloves_stat_bonuses[3] = 0;
+    env->equipment.gloves_stat_bonuses[STAT_IDX.strength] = 0;
+    env->equipment.gloves_stat_bonuses[STAT_IDX.dexterity] = 1;
+    env->equipment.gloves_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.gloves_stat_bonuses[STAT_IDX.vitality] = 0;
     
     env->equipment.helmet_type = EQUIPMENT.helmet;
     env->equipment.helmet_quality = QUALITY.common;
     env->equipment.helmet_level = 1;
-    env->equipment.helmet_stat_bonuses[0] = 1;
-    env->equipment.helmet_stat_bonuses[1] = 0;
-    env->equipment.helmet_stat_bonuses[2] = 0;
-    env->equipment.helmet_stat_bonuses[3] = 0;
+    env->equipment.helmet_stat_bonuses[STAT_IDX.strength] = 1;
+    env->equipment.helmet_stat_bonuses[STAT_IDX.dexterity] = 0;
+    env->equipment.helmet_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.helmet_stat_bonuses[STAT_IDX.vitality] = 0;
     
     env->equipment.shoulders_type = EQUIPMENT.shoulders;
     env->equipment.shoulders_quality = QUALITY.common;
     env->equipment.shoulders_level = 1;
-    env->equipment.shoulders_stat_bonuses[0] = 1;
-    env->equipment.shoulders_stat_bonuses[1] = 0;
-    env->equipment.shoulders_stat_bonuses[2] = 0;
-    env->equipment.shoulders_stat_bonuses[3] = 0;
+    env->equipment.shoulders_stat_bonuses[STAT_IDX.strength] = 1;
+    env->equipment.shoulders_stat_bonuses[STAT_IDX.dexterity] = 0;
+    env->equipment.shoulders_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.shoulders_stat_bonuses[STAT_IDX.vitality] = 0;
     
     env->equipment.armor_type = EQUIPMENT.armor;
     env->equipment.armor_quality = QUALITY.common;
     env->equipment.armor_level = 1;
-    env->equipment.armor_stat_bonuses[0] = 0;
-    env->equipment.armor_stat_bonuses[1] = 0;
-    env->equipment.armor_stat_bonuses[2] = 0;
-    env->equipment.armor_stat_bonuses[3] = 2;
+    env->equipment.armor_stat_bonuses[STAT_IDX.strength] = 0;
+    env->equipment.armor_stat_bonuses[STAT_IDX.dexterity] = 0;
+    env->equipment.armor_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.armor_stat_bonuses[STAT_IDX.vitality] = 2;
     
     env->equipment.belt_type = EQUIPMENT.belt;
     env->equipment.belt_quality = QUALITY.common;
     env->equipment.belt_level = 1;
-    env->equipment.belt_stat_bonuses[0] = 0;
-    env->equipment.belt_stat_bonuses[1] = 0;
-    env->equipment.belt_stat_bonuses[2] = 0;
-    env->equipment.belt_stat_bonuses[3] = 1;
+    env->equipment.belt_stat_bonuses[STAT_IDX.strength] = 0;
+    env->equipment.belt_stat_bonuses[STAT_IDX.dexterity] = 0;
+    env->equipment.belt_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.belt_stat_bonuses[STAT_IDX.vitality] = 1;
     
     env->equipment.pants_type = EQUIPMENT.pants;
     env->equipment.pants_quality = QUALITY.common;
     env->equipment.pants_level = 1;
-    env->equipment.pants_stat_bonuses[0] = 0;
-    env->equipment.pants_stat_bonuses[1] = 1;
-    env->equipment.pants_stat_bonuses[2] = 0;
-    env->equipment.pants_stat_bonuses[3] = 0;
+    env->equipment.pants_stat_bonuses[STAT_IDX.strength] = 0;
+    env->equipment.pants_stat_bonuses[STAT_IDX.dexterity] = 1;
+    env->equipment.pants_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.pants_stat_bonuses[STAT_IDX.vitality] = 0;
     
     env->equipment.bracers_type = EQUIPMENT.bracers;
     env->equipment.bracers_quality = QUALITY.common;
     env->equipment.bracers_level = 1;
-    env->equipment.bracers_stat_bonuses[0] = 0;
-    env->equipment.bracers_stat_bonuses[1] = 1;
-    env->equipment.bracers_stat_bonuses[2] = 0;
-    env->equipment.bracers_stat_bonuses[3] = 0;
+    env->equipment.bracers_stat_bonuses[STAT_IDX.strength] = 0;
+    env->equipment.bracers_stat_bonuses[STAT_IDX.dexterity] = 1;
+    env->equipment.bracers_stat_bonuses[STAT_IDX.intelligence] = 0;
+    env->equipment.bracers_stat_bonuses[STAT_IDX.vitality] = 0;
     
     calculate_total_stats(env);
     
@@ -159,12 +159,12 @@ void give_stat_based_rewards(Rift* env, uint32_t old_str, uint32_t old_dex, uint
     if (total_stat_diff > 0) {
         stat_reward = total_stat_diff * TOWN_STAT_INCREASE_REWARD;
     } else if (total_stat_diff < 0) {
-        stat_reward = total_stat_diff * TOWN_STAT_DECREASE_PENALTY * 2.0f;
+        stat_reward = total_stat_diff * TOWN_STAT_DECREASE_PENALTY * REWARD_PENALTIES.stat_decrease_penalty_multiplier;
     } else if (total_stat_diff == 0) {
         if (ilvl_diff < 0) {
-            stat_reward = -3.0f * abs(ilvl_diff);
+            stat_reward = REWARD_PENALTIES.no_change_penalty * abs(ilvl_diff);
         } else if (ilvl_diff == 0) {
-            stat_reward = -2.0f;
+            stat_reward = REWARD_PENALTIES.no_change_same_ilvl_penalty;
         }
     }
     
@@ -178,64 +178,64 @@ void give_stat_based_rewards(Rift* env, uint32_t old_str, uint32_t old_dex, uint
 
 void calculate_total_stats(Rift* env) {
     env->hero_stats.total_strength = env->hero_stats.strength + 
-                                    env->equipment.weapon_stat_bonuses[0] + 
-                                    env->equipment.offhand_stat_bonuses[0] + 
-                                    env->equipment.ring_left_stat_bonuses[0] + 
-                                    env->equipment.ring_right_stat_bonuses[0] + 
-                                    env->equipment.amulet_stat_bonuses[0] + 
-                                    env->equipment.boots_stat_bonuses[0] + 
-                                    env->equipment.gloves_stat_bonuses[0] + 
-                                    env->equipment.helmet_stat_bonuses[0] + 
-                                    env->equipment.shoulders_stat_bonuses[0] + 
-                                    env->equipment.armor_stat_bonuses[0] + 
-                                    env->equipment.belt_stat_bonuses[0] + 
-                                    env->equipment.pants_stat_bonuses[0] + 
-                                    env->equipment.bracers_stat_bonuses[0];
+                                    env->equipment.weapon_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.offhand_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.ring_left_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.ring_right_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.amulet_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.boots_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.gloves_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.helmet_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.shoulders_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.armor_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.belt_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.pants_stat_bonuses[STAT_IDX.strength] + 
+                                    env->equipment.bracers_stat_bonuses[STAT_IDX.strength];
     
     env->hero_stats.total_dexterity = env->hero_stats.dexterity + 
-                                     env->equipment.weapon_stat_bonuses[1] + 
-                                     env->equipment.offhand_stat_bonuses[1] + 
-                                     env->equipment.ring_left_stat_bonuses[1] + 
-                                     env->equipment.ring_right_stat_bonuses[1] + 
-                                     env->equipment.amulet_stat_bonuses[1] + 
-                                     env->equipment.boots_stat_bonuses[1] + 
-                                     env->equipment.gloves_stat_bonuses[1] + 
-                                     env->equipment.helmet_stat_bonuses[1] + 
-                                     env->equipment.shoulders_stat_bonuses[1] + 
-                                     env->equipment.armor_stat_bonuses[1] + 
-                                     env->equipment.belt_stat_bonuses[1] + 
-                                     env->equipment.pants_stat_bonuses[1] + 
-                                     env->equipment.bracers_stat_bonuses[1];
+                                     env->equipment.weapon_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.offhand_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.ring_left_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.ring_right_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.amulet_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.boots_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.gloves_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.helmet_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.shoulders_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.armor_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.belt_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.pants_stat_bonuses[STAT_IDX.dexterity] + 
+                                     env->equipment.bracers_stat_bonuses[STAT_IDX.dexterity];
     
     env->hero_stats.total_intelligence = env->hero_stats.intelligence + 
-                                        env->equipment.weapon_stat_bonuses[2] + 
-                                        env->equipment.offhand_stat_bonuses[2] + 
-                                        env->equipment.ring_left_stat_bonuses[2] + 
-                                        env->equipment.ring_right_stat_bonuses[2] + 
-                                        env->equipment.amulet_stat_bonuses[2] + 
-                                        env->equipment.boots_stat_bonuses[2] + 
-                                        env->equipment.gloves_stat_bonuses[2] + 
-                                        env->equipment.helmet_stat_bonuses[2] + 
-                                        env->equipment.shoulders_stat_bonuses[2] + 
-                                        env->equipment.armor_stat_bonuses[2] + 
-                                        env->equipment.belt_stat_bonuses[2] + 
-                                        env->equipment.pants_stat_bonuses[2] + 
-                                        env->equipment.bracers_stat_bonuses[2];
+                                        env->equipment.weapon_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.offhand_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.ring_left_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.ring_right_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.amulet_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.boots_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.gloves_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.helmet_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.shoulders_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.armor_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.belt_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.pants_stat_bonuses[STAT_IDX.intelligence] + 
+                                        env->equipment.bracers_stat_bonuses[STAT_IDX.intelligence];
     
     env->hero_stats.total_vitality = env->hero_stats.vitality + 
-                                    env->equipment.weapon_stat_bonuses[3] + 
-                                    env->equipment.offhand_stat_bonuses[3] + 
-                                    env->equipment.ring_left_stat_bonuses[3] + 
-                                    env->equipment.ring_right_stat_bonuses[3] + 
-                                    env->equipment.amulet_stat_bonuses[3] + 
-                                    env->equipment.boots_stat_bonuses[3] + 
-                                    env->equipment.gloves_stat_bonuses[3] + 
-                                    env->equipment.helmet_stat_bonuses[3] + 
-                                    env->equipment.shoulders_stat_bonuses[3] + 
-                                    env->equipment.armor_stat_bonuses[3] + 
-                                    env->equipment.belt_stat_bonuses[3] + 
-                                    env->equipment.pants_stat_bonuses[3] + 
-                                    env->equipment.bracers_stat_bonuses[3];
+                                    env->equipment.weapon_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.offhand_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.ring_left_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.ring_right_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.amulet_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.boots_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.gloves_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.helmet_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.shoulders_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.armor_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.belt_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.pants_stat_bonuses[STAT_IDX.vitality] + 
+                                    env->equipment.bracers_stat_bonuses[STAT_IDX.vitality];
     
     uint32_t total_ilvl = env->equipment.weapon_level + env->equipment.offhand_level + 
                          env->equipment.ring_left_level + env->equipment.ring_right_level +
@@ -297,11 +297,11 @@ void generate_shop_inventory(Rift* env) {
         GetQualityChances(rift_level, &common_chance, &rare_chance, &epic_chance, &legendary_chance);
         
         uint32_t quality_roll = rand() % 100;
-        if (quality_roll < legendary_chance) {
+        if ((int)quality_roll < legendary_chance) {
             item->item_quality = QUALITY.legendary;
-        } else if (quality_roll < legendary_chance + epic_chance) {
+        } else if ((int)quality_roll < legendary_chance + epic_chance) {
             item->item_quality = QUALITY.epic;
-        } else if (quality_roll < legendary_chance + epic_chance + rare_chance) {
+        } else if ((int)quality_roll < legendary_chance + epic_chance + rare_chance) {
             item->item_quality = QUALITY.rare;
         } else {
             item->item_quality = QUALITY.common;
@@ -339,8 +339,8 @@ void generate_shop_inventory(Rift* env) {
         }
         
         uint16_t base_price = 50 + (item->item_level * 10);
-        uint32_t total_stats = item->stat_bonuses[0] + item->stat_bonuses[1] + 
-                             item->stat_bonuses[2] + item->stat_bonuses[3];
+        uint32_t total_stats = item->stat_bonuses[STAT_IDX.strength] + item->stat_bonuses[STAT_IDX.dexterity] + 
+                             item->stat_bonuses[STAT_IDX.intelligence] + item->stat_bonuses[STAT_IDX.vitality];
         
         item->price = GetScaledItemPrice(base_price, rift_level, item->item_quality) + (total_stats * 5);
         
@@ -504,7 +504,6 @@ void handle_town_navigation(Rift* env, int action) {
                 if (new_idx >= 0 && env->shop_items[new_idx].available) {
                     env->town_interface.selected_item_index = new_idx;
                     
-                    int visible_items = 4;
                     int item_y = new_idx * 90;
                     int current_scroll = -env->town_interface.shop_scroll_offset;
                     int container_height = 400;
@@ -547,7 +546,6 @@ void handle_town_navigation(Rift* env, int action) {
                 if (new_idx < SHOP_ITEMS_COUNT && env->shop_items[new_idx].available) {
                     env->town_interface.selected_item_index = new_idx;
                     
-                    int visible_items = 4;
                     int item_y = new_idx * 90;
                     int current_scroll = -env->town_interface.shop_scroll_offset;
                     int container_height = 400;

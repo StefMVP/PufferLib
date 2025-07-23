@@ -3,6 +3,45 @@
 
 #include "render_core.h"
 
+typedef struct {
+    Color active_tab, inactive_tab;
+    Color shop_indicator, character_indicator;
+    Color timer_high, timer_med, timer_low;
+    float timer_fps_divisor;
+    int timer_low_threshold, timer_med_threshold;
+} TownUIColors;
+
+typedef struct {
+    int selection_glow_margin;
+    int quality_highlight_margin; 
+    int icon_offset_divisor;
+    int ilvl_text_size;
+    int stats_text_line_height;
+    float selection_glow_alpha;
+} TownRenderConstants;
+
+static const TownUIColors TOWN_UI_COLORS = {
+    .active_tab = {255, 255, 255, 255},
+    .inactive_tab = {150, 150, 150, 255},
+    .shop_indicator = {100, 150, 255, 255},
+    .character_indicator = {0, 255, 100, 255},
+    .timer_high = {0, 255, 0, 255},
+    .timer_med = {255, 165, 0, 255},
+    .timer_low = {255, 0, 0, 255},
+    .timer_fps_divisor = 60.0f,
+    .timer_low_threshold = 120,
+    .timer_med_threshold = 200
+};
+
+static const TownRenderConstants TOWN_RENDER = {
+    .selection_glow_margin = 6,
+    .quality_highlight_margin = 2,
+    .icon_offset_divisor = 2,
+    .ilvl_text_size = 10,
+    .stats_text_line_height = 18,
+    .selection_glow_alpha = 120.0f
+};
+
 void render_character_tab(Rift* env);
 void render_shop_tab(Rift* env);
 
@@ -34,8 +73,9 @@ static void render_equipment_slot(Rift* env, int x, int y, int slot_size, Equipm
                           GetQualityColor(*config.quality_ptr) : TOWN_COLORS.empty_slot;
     
     if ((int)env->town_interface.selected_item_index == config.index) {
-        DrawRectangle(x - 6, y - 6, slot_size + 12, slot_size + 12, 
-                      fade_color(quality_color, (uint32_t)(120 * pulse)));
+        DrawRectangle(x - TOWN_RENDER.selection_glow_margin, y - TOWN_RENDER.selection_glow_margin, 
+                      slot_size + TOWN_RENDER.selection_glow_margin * 2, slot_size + TOWN_RENDER.selection_glow_margin * 2, 
+                      fade_color(quality_color, (uint32_t)(TOWN_RENDER.selection_glow_alpha * pulse)));
     }
     
     DrawRectangleGradientV(x, y, slot_size, slot_size, 
@@ -76,22 +116,21 @@ void render_town(Rift* env) {
         DrawRectangle(0, y, GetScreenWidth(), 1, current);
     }
     
-    float glow_pulse = get_ui_pulse(UI_ANIMATION.ui_pulse_slow_speed, UI_ANIMATION.ui_pulse_base, UI_ANIMATION.ui_pulse_amplitude);
     
     bool shop_active = (env->town_interface.current_tab == TOWN_TAB.shop);
-    Color shop_color = shop_active ? WHITE : (Color){150, 150, 150, 255};
+    Color shop_color = shop_active ? TOWN_UI_COLORS.active_tab : TOWN_UI_COLORS.inactive_tab;
     DrawText("SHOP (1)", 100, 30, 20, shop_color);
     if (shop_active) {
-        DrawRectangle(100, 55, 100, 3, (Color){100, 150, 255, 255});
-        DrawRectangle(98, 56, 104, 1, (Color){100, 150, 255, 150});
+        DrawRectangle(100, 55, 100, 3, TOWN_UI_COLORS.shop_indicator);
+        DrawRectangle(98, 56, 104, 1, fade_color(TOWN_UI_COLORS.shop_indicator, 150));
     }
     
     bool char_active = (env->town_interface.current_tab == TOWN_TAB.character);
-    Color char_color = char_active ? WHITE : (Color){150, 150, 150, 255};
+    Color char_color = char_active ? TOWN_UI_COLORS.active_tab : TOWN_UI_COLORS.inactive_tab;
     DrawText("CHARACTER (2)", 250, 30, 20, char_color);
     if (char_active) {
-        DrawRectangle(250, 55, 160, 3, (Color){0, 255, 100, 255});
-        DrawRectangle(248, 56, 164, 1, (Color){0, 255, 100, 150});
+        DrawRectangle(250, 55, 160, 3, TOWN_UI_COLORS.character_indicator);
+        DrawRectangle(248, 56, 164, 1, fade_color(TOWN_UI_COLORS.character_indicator, 150));
     }
     
     
@@ -102,11 +141,11 @@ void render_town(Rift* env) {
         render_shop_tab(env);
     }
     
-    Color timer_color = GREEN;
-    if (env->town_interface.frames_remaining < 120) timer_color = RED;
-    else if (env->town_interface.frames_remaining < 200) timer_color = ORANGE;
+    Color timer_color = TOWN_UI_COLORS.timer_high;
+    if (env->town_interface.frames_remaining < TOWN_UI_COLORS.timer_low_threshold) timer_color = TOWN_UI_COLORS.timer_low;
+    else if (env->town_interface.frames_remaining < TOWN_UI_COLORS.timer_med_threshold) timer_color = TOWN_UI_COLORS.timer_med;
     
-    float time_remaining = (float)env->town_interface.frames_remaining / 60.0f;
+    float time_remaining = (float)env->town_interface.frames_remaining / TOWN_UI_COLORS.timer_fps_divisor;
     char timer_text[32];
     sprintf(timer_text, "Time: %.1fs", time_remaining);
     DrawText(timer_text, TOP_UI_X + TOP_UI_WIDTH - 180, TOP_UI_Y + 15, 18, timer_color);
@@ -190,7 +229,7 @@ void render_character_tab(Rift* env) {
                     char stat_text[64];
                     sprintf(stat_text, "+%d %s", stat_bonuses[i], stat_names[i]);
                     DrawText(stat_text, STATS_PANEL_X + STATS_CONTENT_MARGIN_INDENT, stat_y, 11, stat_colors[i]);
-                    stat_y += 18;
+                    stat_y += TOWN_RENDER.stats_text_line_height;
                 }
             }
             
@@ -216,9 +255,8 @@ void render_character_tab(Rift* env) {
             Color slot_border = EXTENDED_TOWN_COLORS.slot_border;
             
             if ((uint32_t)env->town_interface.selected_item_index == (uint32_t)i) {
-                int selection_margin = 8;
-                int selection_size = inv_layout.slot_size + 2 * selection_margin;
-                DrawRectangle(x - selection_margin, y - selection_margin, selection_size, selection_size, 
+                int selection_size = inv_layout.slot_size + TOWN_RENDER.selection_glow_margin * 2;
+                DrawRectangle(x - TOWN_RENDER.selection_glow_margin, y - TOWN_RENDER.selection_glow_margin, selection_size, selection_size, 
                               fade_color(TOWN_COLORS.selected_glow, (uint32_t)(150 * pulse)));
             }
             
@@ -226,18 +264,17 @@ void render_character_tab(Rift* env) {
             
             if (env->player.inventory[i].item_type != EQUIPMENT.none) {
                 Color item_quality_color = GetQualityColor(env->player.inventory[i].item_quality);
-                int quality_margin = 2;
-                int quality_size = inv_layout.slot_size + 2 * quality_margin;
-                DrawRectangle(x - quality_margin, y - quality_margin, quality_size, quality_size, 
+                int quality_size = inv_layout.slot_size + TOWN_RENDER.quality_highlight_margin * 2;
+                DrawRectangle(x - TOWN_RENDER.quality_highlight_margin, y - TOWN_RENDER.quality_highlight_margin, quality_size, quality_size, 
                               fade_color(item_quality_color, 80));
                 
                 DrawItem(x, y, inv_layout.slot_size - 20, item_quality_color, env->player.inventory[i].item_type);
                 
                 char ilvl_text[8];
                 sprintf(ilvl_text, "ilvl%d", env->player.inventory[i].item_level);
-                DrawText(ilvl_text, x + 5, y + inv_layout.slot_size - 15, 10, (Color){255, 255, 255, 200});
+                DrawText(ilvl_text, x + 5, y + inv_layout.slot_size - 15, TOWN_RENDER.ilvl_text_size, (Color){255, 255, 255, 200});
             } else {
-                int icon_offset = inv_layout.slot_size / 2 - 15;
+                int icon_offset = inv_layout.slot_size / TOWN_RENDER.icon_offset_divisor - 15;
                 DrawText("[ ]", x + icon_offset, y + icon_offset - 5, 30, TOWN_COLORS.empty_slot);
             }
             

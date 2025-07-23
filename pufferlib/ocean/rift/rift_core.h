@@ -1,6 +1,48 @@
 #ifndef RIFT_CORE_H
 #define RIFT_CORE_H
 
+typedef struct {
+    uint32_t initial_rift_level;
+    uint32_t elite_scaling_divisor;
+    uint32_t boss_gold_multiplier;
+    float nearby_enemy_distance;
+    float max_enemy_distance;
+    float nearby_enemy_normalization;
+    float default_facing_x;
+    float default_facing_y;
+} CoreGameConstants;
+
+typedef struct {
+    float monster_zombie_value;
+    float monster_mage_value;
+    float monster_heavy_melee_value;
+    float monster_light_value;
+    float monster_elite_value;
+    float boss_value;
+    float item_value;
+} GridObservationValues;
+
+static const CoreGameConstants CORE_GAME = {
+    .initial_rift_level = 1,
+    .elite_scaling_divisor = 3,
+    .boss_gold_multiplier = 3,
+    .nearby_enemy_distance = 8.0f,
+    .max_enemy_distance = 100.0f,
+    .nearby_enemy_normalization = 10.0f,
+    .default_facing_x = 0.0f,
+    .default_facing_y = -1.0f
+};
+
+static const GridObservationValues GRID_OBS = {
+    .monster_zombie_value = 0.2f,
+    .monster_mage_value = 0.4f,
+    .monster_heavy_melee_value = 0.6f,
+    .monster_light_value = 0.3f,
+    .monster_elite_value = 0.8f,
+    .boss_value = 1.0f,
+    .item_value = -0.3f
+};
+
 static void add_log(Rift* env);
 void compute_observations(Rift* env);
 void init_hero_stats(Rift* env);
@@ -29,8 +71,8 @@ static inline float distance_squared(float x1, float y1, float x2, float y2) {
 }
 
 static inline uint32_t clamp_uint32(int value, uint32_t min_val, uint32_t max_val) {
-    if (value < min_val) return min_val;
-    if (value > max_val) return max_val;
+    if (value < 0 || (uint32_t)value < min_val) return min_val;
+    if ((uint32_t)value > max_val) return max_val;
     return (uint32_t)value;
 }
 
@@ -44,13 +86,56 @@ static inline float normalize_to_unit(float value, float max_value) {
     return value / max_value;
 }
 
-static const float BLIZZARD_RADIUS_SQUARED = 4.0f; // BLIZZARD.radius * BLIZZARD.radius = 2.0 * 2.0
+static const float BLIZZARD_RADIUS_SQUARED = 4.0f;
+
+static inline void calculate_enemy_distances(Rift* env, float* nearest_enemy_dist, int* nearby_enemies) {
+    for (uint16_t i = 0; i < MONSTER.max_count; i++) {
+        if (env->monsters[i].alive) {
+            float dist = distance(env->player.x, env->player.y, env->monsters[i].x, env->monsters[i].y);
+            if (dist < *nearest_enemy_dist) {
+                *nearest_enemy_dist = dist;
+            }
+            if (dist <= CORE_GAME.nearby_enemy_distance) {
+                (*nearby_enemies)++;
+            }
+        }
+    }
+    
+    if (env->boss.alive) {
+        float boss_dist = distance(env->player.x, env->player.y, env->boss.x, env->boss.y);
+        if (boss_dist < *nearest_enemy_dist) {
+            *nearest_enemy_dist = boss_dist;
+        }
+        if (boss_dist <= CORE_GAME.nearby_enemy_distance) {
+            (*nearby_enemies)++;
+        }
+    }
+}
+
+static inline float get_monster_grid_value(uint32_t monster_type) {
+    switch (monster_type) {
+        case MONSTER_ZOMBIE: return GRID_OBS.monster_zombie_value;
+        case MONSTER_MAGE: return GRID_OBS.monster_mage_value;
+        case MONSTER_HEAVY_MELEE: return GRID_OBS.monster_heavy_melee_value;
+        case MONSTER_LIGHT: return GRID_OBS.monster_light_value;
+        case MONSTER_ELITE: return GRID_OBS.monster_elite_value;
+        default: return 0.0f;
+    }
+}
+
+static inline bool is_in_grid_bounds(int gx, int gy) {
+    return gx >= 0 && gx < OBSERVATION.grid_size && gy >= 0 && gy < OBSERVATION.grid_size;
+}
+
+static inline bool is_valid_world_position(int world_x, int world_y) {
+    return world_x >= 0 && (uint32_t)world_x < MAP.width && world_y >= 0 && (uint32_t)world_y < MAP.height;
+}
 
 void init(Rift* env) {
     env->tick = 0;
     env->config = DEFAULT_CONFIG;
     env->current_phase = PHASES.rift;
-    env->current_rift_level = 1;
+    env->current_rift_level = CORE_GAME.initial_rift_level;
 }
 
 void allocate(Rift* env) {
@@ -77,7 +162,7 @@ void free_allocated(Rift* env) {
 void c_reset(Rift* env) {
     init_hero_stats(env);
     
-    env->current_rift_level = 1;
+    env->current_rift_level = CORE_GAME.initial_rift_level;
     
     #if TOWN_TESTING_MODE
         env->current_phase = PHASES.town;
@@ -113,8 +198,8 @@ void c_reset(Rift* env) {
     env->player.low_health_penalty_cooldown = 0;
     env->player.inventory_count = 0;
     env->player.selected_inventory_slot = 0;
-    env->player.facing_x = 0.0f;
-    env->player.facing_y = -1.0f;
+    env->player.facing_x = CORE_GAME.default_facing_x;
+    env->player.facing_y = CORE_GAME.default_facing_y;
     memset(env->player.old_inventory, 0, sizeof(env->player.old_inventory));
     memset(env->player.inventory, 0, sizeof(env->player.inventory));
     
@@ -125,7 +210,7 @@ void c_reset(Rift* env) {
     env->next_item_id = 0;
     
     env->elites_spawned = 0;
-    env->max_elites = 2 + env->current_rift_level / 3;
+    env->max_elites = 2 + env->current_rift_level / CORE_GAME.elite_scaling_divisor;
     
     memset(env->items, 0, sizeof(env->items));
     memset(env->projectiles, 0, sizeof(env->projectiles));
@@ -250,7 +335,7 @@ void c_step(Rift* env) {
             env->episode_return += env->config.completion_reward;
             env->episode_completion_rewards += env->config.completion_reward;
             
-            uint16_t boss_gold = (VENDOR.drop_min + rand() % VENDOR.drop_range) * 3; 
+            uint16_t boss_gold = (VENDOR.drop_min + rand() % VENDOR.drop_range) * CORE_GAME.boss_gold_multiplier; 
             env->player.gold += boss_gold;
             env->episode_gold_earned += boss_gold;
             
@@ -293,31 +378,13 @@ void compute_observations(Rift* env) {
     float progress = (float)env->monsters_killed / MONSTER.spawn_count;
     env->observations[obs_idx++] = progress;
     
-    float nearest_enemy_dist = 100.0f;
+    float nearest_enemy_dist = CORE_GAME.max_enemy_distance;
     int nearby_enemies = 0;
-    for (uint16_t i = 0; i < MONSTER.max_count; i++) {
-        if (env->monsters[i].alive) {
-            float dist = distance(env->player.x, env->player.y, env->monsters[i].x, env->monsters[i].y);
-            if (dist < nearest_enemy_dist) {
-                nearest_enemy_dist = dist;
-            }
-            if (dist <= 8.0f) {
-                nearby_enemies++;
-            }
-        }
-    }
-    if (env->boss.alive) {
-        float boss_dist = distance(env->player.x, env->player.y, env->boss.x, env->boss.y);
-        if (boss_dist < nearest_enemy_dist) {
-            nearest_enemy_dist = boss_dist;
-        }
-        if (boss_dist <= 8.0f) {
-            nearby_enemies++;
-        }
-    }
+    
+    calculate_enemy_distances(env, &nearest_enemy_dist, &nearby_enemies);
     
     env->observations[obs_idx++] = nearest_enemy_dist / NORMALIZATION.distance;
-    env->observations[obs_idx++] = (float)nearby_enemies / 10.0f;
+    env->observations[obs_idx++] = (float)nearby_enemies / CORE_GAME.nearby_enemy_normalization;
     
     env->observations[obs_idx++] = env->player.x / MAP.width;
     env->observations[obs_idx++] = (MAP.width - 1 - env->player.x) / MAP.width;
@@ -342,13 +409,7 @@ void compute_observations(Rift* env) {
                 int gy = monster_y - player_grid_center_y + half_grid;
                 
                 if (gx >= 0 && gx < OBSERVATION.grid_size && gy >= 0 && gy < OBSERVATION.grid_size) {
-                    switch (env->monsters[i].type) {
-                        case MONSTER_ZOMBIE: grid[gy * OBSERVATION.grid_size + gx] = 0.2f; break;
-                        case MONSTER_MAGE: grid[gy * OBSERVATION.grid_size + gx] = 0.4f; break;
-                        case MONSTER_HEAVY_MELEE: grid[gy * OBSERVATION.grid_size + gx] = 0.6f; break;
-                        case MONSTER_LIGHT: grid[gy * OBSERVATION.grid_size + gx] = 0.3f; break;
-                        case MONSTER_ELITE: grid[gy * OBSERVATION.grid_size + gx] = 0.8f; break;
-                    }
+                    grid[gy * OBSERVATION.grid_size + gx] = get_monster_grid_value(env->monsters[i].type);
                 }
             }
         }
@@ -359,8 +420,8 @@ void compute_observations(Rift* env) {
             int gx = boss_x - player_grid_center_x + half_grid;
             int gy = boss_y - player_grid_center_y + half_grid;
             
-            if (gx >= 0 && gx < OBSERVATION.grid_size && gy >= 0 && gy < OBSERVATION.grid_size) {
-                grid[gy * OBSERVATION.grid_size + gx] = 1.0f;
+            if (is_in_grid_bounds(gx, gy)) {
+                grid[gy * OBSERVATION.grid_size + gx] = GRID_OBS.boss_value;
             }
         }
         
@@ -371,21 +432,21 @@ void compute_observations(Rift* env) {
                 int gx = item_x - player_grid_center_x + half_grid;
                 int gy = item_y - player_grid_center_y + half_grid;
                 
-                if (gx >= 0 && gx < OBSERVATION.grid_size && gy >= 0 && gy < OBSERVATION.grid_size && grid[gy * OBSERVATION.grid_size + gx] == 0.0f) {
-                    grid[gy * OBSERVATION.grid_size + gx] = -0.3f;
+                if (is_in_grid_bounds(gx, gy) && grid[gy * OBSERVATION.grid_size + gx] == 0.0f) {
+                    grid[gy * OBSERVATION.grid_size + gx] = GRID_OBS.item_value;
                 }
             }
         }
     } else if (env->current_phase == PHASES.town) {
         int vendor_gx = VENDOR_POSITION_X - player_grid_center_x + half_grid;
         int vendor_gy = VENDOR_POSITION_Y - player_grid_center_y + half_grid;
-        if (vendor_gx >= 0 && vendor_gx < OBSERVATION.grid_size && vendor_gy >= 0 && vendor_gy < OBSERVATION.grid_size) {
+        if (is_in_grid_bounds(vendor_gx, vendor_gy)) {
             grid[vendor_gy * OBSERVATION.grid_size + vendor_gx] = 0.5f;
         }
         
         int portal_gx = RIFT_PORTAL_X - player_grid_center_x + half_grid;
         int portal_gy = RIFT_PORTAL_Y - player_grid_center_y + half_grid;
-        if (portal_gx >= 0 && portal_gx < OBSERVATION.grid_size && portal_gy >= 0 && portal_gy < OBSERVATION.grid_size) {
+        if (is_in_grid_bounds(portal_gx, portal_gy)) {
             grid[portal_gy * OBSERVATION.grid_size + portal_gx] = 0.7f;
         }
     }
@@ -395,7 +456,7 @@ void compute_observations(Rift* env) {
             int world_x = player_grid_center_x + (gx - half_grid);
             int world_y = player_grid_center_y + (gy - half_grid);
             
-            if (world_x < 0 || world_x >= MAP.width || world_y < 0 || world_y >= MAP.height) {
+            if (!is_valid_world_position(world_x, world_y)) {
                 grid[gy * OBSERVATION.grid_size + gx] = -1.0f;
             }
         }
@@ -411,8 +472,8 @@ void compute_observations(Rift* env) {
             env->observations[obs_idx++] = item->available ? 1.0f : 0.0f;
             env->observations[obs_idx++] = (float)item->item_quality / 3.0f;
             env->observations[obs_idx++] = (float)item->price / 500.0f;
-            env->observations[obs_idx++] = (float)(item->stat_bonuses[0] + item->stat_bonuses[1] + 
-                                                  item->stat_bonuses[2] + item->stat_bonuses[3]) / 20.0f;
+            env->observations[obs_idx++] = (float)(item->stat_bonuses[STAT_IDX.strength] + item->stat_bonuses[STAT_IDX.dexterity] + 
+                                                  item->stat_bonuses[STAT_IDX.intelligence] + item->stat_bonuses[STAT_IDX.vitality]) / 20.0f;
         }
         
         uint32_t slot_info[13][4];
@@ -427,8 +488,8 @@ void compute_observations(Rift* env) {
                 slot_info[slot_idx][0] = 1;
                 slot_info[slot_idx][1] = inv_item->item_quality;
                 slot_info[slot_idx][2] = inv_item->item_level;
-                slot_info[slot_idx][3] = inv_item->stat_bonuses[0] + inv_item->stat_bonuses[1] + 
-                                        inv_item->stat_bonuses[2] + inv_item->stat_bonuses[3];
+                slot_info[slot_idx][3] = inv_item->stat_bonuses[STAT_IDX.strength] + inv_item->stat_bonuses[STAT_IDX.dexterity] + 
+                                        inv_item->stat_bonuses[STAT_IDX.intelligence] + inv_item->stat_bonuses[STAT_IDX.vitality];
             }
         }
         

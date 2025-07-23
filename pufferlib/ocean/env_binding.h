@@ -612,7 +612,7 @@ static PyObject* vec_close(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
-static double unpack(PyObject* kwargs, char* key) {
+__attribute__((unused)) static double unpack(PyObject* kwargs, char* key) {
     PyObject* val = PyDict_GetItemString(kwargs, key);
     if (val == NULL) {
         char error_msg[100];

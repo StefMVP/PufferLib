@@ -60,6 +60,38 @@ typedef struct {
     int index;
 } EquipmentSlotConfig;
 
+typedef struct {
+    int shadow_offset;
+    int color_brighten_amount;
+    int color_darken_divisor;
+    int ui_glow_border;
+} RenderConstants;
+
+static const RenderConstants RENDER_CONSTS = {
+    .shadow_offset = 2,
+    .color_brighten_amount = 50,
+    .color_darken_divisor = 2,
+    .ui_glow_border = 5
+};
+
+typedef struct {
+    float monster_size_small;
+    float monster_size_large;
+    float item_size_small;
+    float item_size_large;
+    float boss_size_multiplier;
+    float elite_glow_multiplier;
+} EntitySizeConstants;
+
+static const EntitySizeConstants ENTITY_SIZES = {
+    .monster_size_small = 0.167f,
+    .monster_size_large = 0.25f,
+    .item_size_small = 0.083f,
+    .item_size_large = 0.125f,
+    .boss_size_multiplier = 0.5f,
+    .elite_glow_multiplier = 0.33f
+};
+
 static const TownLayout TOWN_UI_LAYOUT = {
     .tab_width = 200, .tab_height = 50,
     .content_width = 400, .content_height = 668,
@@ -313,6 +345,10 @@ static inline Color darken_color(Color color, int divisor) {
     return (Color){color.r/divisor, color.g/divisor, color.b/divisor, color.a};
 }
 
+static inline Color darken_color_default(Color color) {
+    return darken_color(color, RENDER_CONSTS.color_darken_divisor);
+}
+
 static inline Color brighten_color(Color color, int amount) {
     return (Color){
         color.r + amount > 255 ? 255 : color.r + amount,
@@ -320,6 +356,10 @@ static inline Color brighten_color(Color color, int amount) {
         color.b + amount > 255 ? 255 : color.b + amount,
         color.a
     };
+}
+
+static inline Color brighten_color_default(Color color) {
+    return brighten_color(color, RENDER_CONSTS.color_brighten_amount);
 }
 
 static inline Color fade_color(Color color, uint8_t alpha) {
@@ -337,7 +377,7 @@ static inline Color GetQualityColor(uint32_t quality) {
 }
 
 static inline void draw_gradient_rect(int x, int y, int width, int height, Color color) {
-    DrawRectangleGradientV(x, y, width, height, color, darken_color(color, 2));
+    DrawRectangleGradientV(x, y, width, height, color, darken_color_default(color));
 }
 
 static inline void draw_gem(int x, int y, int size, Color color) {
@@ -414,8 +454,8 @@ static inline void draw_simple_monster(Vector2 pos, float size, uint32_t monster
     float size_mult = get_monster_size_multiplier(monster_type);
     Color color = get_monster_color(monster_type);
     
-    float radius = size * 0.25f * size_mult;
-    float inner_radius = size * 0.167f * size_mult;
+    float radius = size * ENTITY_SIZES.monster_size_large * size_mult;
+    float inner_radius = size * ENTITY_SIZES.monster_size_small * size_mult;
     
     draw_shadow(pos.x, pos.y, radius, 1, SHADOW_RENDER.alpha);
     DrawCircle(pos.x, pos.y, radius, color);
@@ -423,13 +463,13 @@ static inline void draw_simple_monster(Vector2 pos, float size, uint32_t monster
     
     if (monster_type == MONSTERS.elite) {
         float glow = calculate_glow(tick, GLOW_EFFECT.speed, 0.0f);
-        DrawCircleLines(pos.x, pos.y, size * 0.33f * size_mult * glow, (Color){255, 255, 255, GLOW_EFFECT.alpha});
+        DrawCircleLines(pos.x, pos.y, size * ENTITY_SIZES.elite_glow_multiplier * size_mult * glow, (Color){255, 255, 255, GLOW_EFFECT.alpha});
     }
 }
 
 static inline void draw_simple_boss(Vector2 pos, float size, int tick) {
-    float radius = size * 0.5f * BOSS_RENDER.size_multiplier;
-    float inner_radius = size * 0.33f * BOSS_RENDER.size_multiplier;
+    float radius = size * ENTITY_SIZES.boss_size_multiplier * BOSS_RENDER.size_multiplier;
+    float inner_radius = size * ENTITY_SIZES.elite_glow_multiplier * BOSS_RENDER.size_multiplier;
     
     draw_shadow(pos.x, pos.y, radius, BOSS_RENDER.shadow_offset, BOSS_RENDER.shadow_alpha);
     
@@ -445,8 +485,8 @@ static inline void draw_simple_item(Vector2 pos, float size, uint32_t item_type,
     Color color = get_item_color(item_type);
     float glow = calculate_glow(tick, ITEM_RENDER.glow_speed, index);
     
-    DrawCircle(pos.x, pos.y, size * 0.125f * glow, color);
-    DrawCircle(pos.x, pos.y, size * 0.083f, WHITE);
+    DrawCircle(pos.x, pos.y, size * ENTITY_SIZES.item_size_large * glow, color);
+    DrawCircle(pos.x, pos.y, size * ENTITY_SIZES.item_size_small, WHITE);
 }
 
 static inline void DrawTextRelative(const char* text, int16_t container_x, int16_t container_y, int16_t offset_x, int16_t offset_y, uint8_t font_size, Color color) {
@@ -582,7 +622,8 @@ static inline float get_ui_pulse(float speed, float base, float amplitude) {
 
 static inline void draw_ui_tab(int x, int y, int width, int height, Color tab_color, Color border_color, Color glow_color, bool active, float pulse) {
     if (active) {
-        DrawRectangle(x - 5, y - 5, width + 10, height + 10, glow_color);
+        DrawRectangle(x - RENDER_CONSTS.ui_glow_border, y - RENDER_CONSTS.ui_glow_border, 
+                     width + RENDER_CONSTS.ui_glow_border * 2, height + RENDER_CONSTS.ui_glow_border * 2, glow_color);
     }
     draw_gradient_rect(x, y, width, height, tab_color);
     DrawRectangleLines(x, y, width, height, border_color);
@@ -591,8 +632,8 @@ static inline void draw_ui_tab(int x, int y, int width, int height, Color tab_co
 
 static inline void draw_content_panel(int x, int y, int width, int height, Color content_bg) {
     Color shadow = {0, 0, 0, 150};
-    DrawRectangle(x + 5, y + 5, width, height, shadow);
-    DrawRectangle(x + 4, y + 4, width, height, shadow);
+    DrawRectangle(x + RENDER_CONSTS.ui_glow_border, y + RENDER_CONSTS.ui_glow_border, width, height, shadow);
+    DrawRectangle(x + RENDER_CONSTS.ui_glow_border - 1, y + RENDER_CONSTS.ui_glow_border - 1, width, height, shadow);
     draw_gradient_rect(x, y, width, height, content_bg);
     
     Color border_main = {100, 120, 150, 255};

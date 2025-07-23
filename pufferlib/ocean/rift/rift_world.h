@@ -54,7 +54,7 @@ void spawn_monster_pack(Rift* env, float center_x, float center_y, uint32_t pack
         for (uint16_t i = 0; i < MONSTER.max_count; i++) {
             if (!env->monsters[i].alive && env->monsters_spawned < MONSTER.spawn_count) {
                 float angle = ((float)rand() / RAND_MAX) * 2.0f * PI;
-                float radius = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
+                float radius = WORLD_CONST.spawn_radius_min + ((float)rand() / RAND_MAX) * WORLD_CONST.spawn_radius_max;
                 float spawn_x = center_x + cos(angle) * radius;
                 float spawn_y = center_y + sin(angle) * radius;
                 
@@ -128,7 +128,7 @@ void spawn_diverse_pack(Rift* env, float center_x, float center_y, uint32_t pack
         for (uint16_t i = 0; i < MONSTER.max_count; i++) {
             if (!env->monsters[i].alive && env->monsters_spawned < MONSTER.spawn_count) {
                 float angle = ((float)rand() / RAND_MAX) * 2.0f * PI;
-                float radius = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
+                float radius = WORLD_CONST.spawn_radius_min + ((float)rand() / RAND_MAX) * WORLD_CONST.spawn_radius_max;
                 float spawn_x = center_x + cos(angle) * radius;
                 float spawn_y = center_y + sin(angle) * radius;
                 

@@ -1,6 +1,31 @@
 #ifndef RIFT_COMBAT_H
 #define RIFT_COMBAT_H
 
+typedef struct {
+    uint32_t attack_animation_melee;
+    uint32_t attack_animation_cone_slam;
+    float cone_attack_angle;
+    float cone_attack_tolerance;
+    float homing_distance_threshold;
+    uint32_t homing_lifetime_bonus;
+} CombatConstants;
+
+
+static const CombatConstants COMBAT = {
+    .attack_animation_melee = 20,
+    .attack_animation_cone_slam = 30,
+    .cone_attack_angle = PI/3,
+    .cone_attack_tolerance = 2*PI - PI/3,
+    .homing_distance_threshold = 0.1f,
+    .homing_lifetime_bonus = 30
+};
+
+static inline void clear_all_monsters(Rift* env) {
+    for (uint16_t i = 0; i < MONSTER.max_count; i++) {
+        env->monsters[i].alive = 0;
+    }
+}
+
 void spawn_boss(Rift* env) {
     env->boss.x = MAP_WIDTH / 2;
     env->boss.y = MAP_HEIGHT / 2;
@@ -13,85 +38,80 @@ void spawn_boss(Rift* env) {
     env->boss.special_attack_cooldown = 0;
     env->boss_spawned = 1;
     
-    for (uint16_t i = 0; i < MONSTER.max_count; i++) {
-        env->monsters[i].alive = 0;
+    clear_all_monsters(env);
+}
+
+static inline void init_projectile_velocity(Projectile* proj, float start_x, float start_y, float target_x, float target_y, float speed) {
+    float dx = target_x - start_x;
+    float dy = target_y - start_y;
+    float dist = sqrtf(dx * dx + dy * dy);
+    
+    if (dist > 0) {
+        proj->vel_x = (dx / dist) * speed;
+        proj->vel_y = (dy / dist) * speed;
+    } else {
+        proj->vel_x = 0;
+        proj->vel_y = 0;
     }
 }
 
-void spawn_projectile(Rift* env, float start_x, float start_y, float target_x, float target_y, uint32_t type, uint32_t damage) {
+static inline Projectile* find_available_projectile(Rift* env) {
     for (uint32_t i = 0; i < MAX_PROJECTILES; i++) {
         if (!env->projectiles[i].active) {
-            env->projectiles[i].x = start_x;
-            env->projectiles[i].y = start_y;
-            env->projectiles[i].type = type;
-            env->projectiles[i].damage = damage;
-            env->projectiles[i].lifetime = PROJECTILE_LIFETIME;
-            env->projectiles[i].active = 1;
-            env->projectiles[i].homing = 0;
-            
-            float dx = target_x - start_x;
-            float dy = target_y - start_y;
-            float dist = sqrtf(dx * dx + dy * dy);
-            
-            if (dist > 0) {
-                env->projectiles[i].vel_x = (dx / dist) * PROJECTILE_SPEED;
-                env->projectiles[i].vel_y = (dy / dist) * PROJECTILE_SPEED;
-            } else {
-                env->projectiles[i].vel_x = 0;
-                env->projectiles[i].vel_y = 0;
-            }
-            break;
+            return &env->projectiles[i];
         }
+    }
+    return NULL;
+}
+
+static inline void apply_damage_to_player(Rift* env, uint32_t damage) {
+    env->episode_damage_taken += damage;
+    
+    if (damage >= env->player.health) {
+        env->player.health = 0;
+        env->player.alive = 0;
+        env->step_reward += env->config.death_penalty;
+        env->episode_return += env->config.death_penalty;
+        env->episode_death_penalties += env->config.death_penalty;
+        env->episode_deaths++;
+    } else {
+        env->player.health -= damage;
+    }
+}
+
+static inline void setup_basic_projectile(Projectile* proj, float start_x, float start_y, uint32_t type, uint32_t damage, uint32_t lifetime, uint32_t homing) {
+    proj->x = start_x;
+    proj->y = start_y;
+    proj->type = type;
+    proj->damage = damage;
+    proj->lifetime = lifetime;
+    proj->active = 1;
+    proj->homing = homing;
+}
+
+void spawn_projectile(Rift* env, float start_x, float start_y, float target_x, float target_y, uint32_t type, uint32_t damage) {
+    Projectile* proj = find_available_projectile(env);
+    if (proj) {
+        setup_basic_projectile(proj, start_x, start_y, type, damage, PROJECTILE_LIFETIME, 0);
+        init_projectile_velocity(proj, start_x, start_y, target_x, target_y, PROJECTILE_SPEED);
     }
 }
 
 void spawn_homing_projectile(Rift* env, float start_x, float start_y, float target_x, float target_y, uint32_t type, uint32_t damage) {
-    for (uint32_t i = 0; i < MAX_PROJECTILES; i++) {
-        if (!env->projectiles[i].active) {
-            env->projectiles[i].x = start_x;
-            env->projectiles[i].y = start_y;
-            env->projectiles[i].target_x = target_x;
-            env->projectiles[i].target_y = target_y;
-            env->projectiles[i].type = type;
-            env->projectiles[i].damage = damage;
-            env->projectiles[i].lifetime = PROJECTILE_LIFETIME + 30;
-            env->projectiles[i].active = 1;
-            env->projectiles[i].homing = 1;
-            
-            float dx = target_x - start_x;
-            float dy = target_y - start_y;
-            float dist = sqrtf(dx * dx + dy * dy);
-            
-            if (dist > 0) {
-                env->projectiles[i].vel_x = (dx / dist) * PROJECTILE_SPEED_HOMING;
-                env->projectiles[i].vel_y = (dy / dist) * PROJECTILE_SPEED_HOMING;
-            }
-            break;
-        }
+    Projectile* proj = find_available_projectile(env);
+    if (proj) {
+        setup_basic_projectile(proj, start_x, start_y, type, damage, PROJECTILE_LIFETIME + COMBAT.homing_lifetime_bonus, 1);
+        proj->target_x = target_x;
+        proj->target_y = target_y;
+        init_projectile_velocity(proj, start_x, start_y, target_x, target_y, PROJECTILE_SPEED_HOMING);
     }
 }
 
 void spawn_fast_projectile(Rift* env, float start_x, float start_y, float target_x, float target_y, uint32_t type, uint32_t damage) {
-    for (uint32_t i = 0; i < MAX_PROJECTILES; i++) {
-        if (!env->projectiles[i].active) {
-            env->projectiles[i].x = start_x;
-            env->projectiles[i].y = start_y;
-            env->projectiles[i].type = type;
-            env->projectiles[i].damage = damage;
-            env->projectiles[i].lifetime = PROJECTILE_LIFETIME;
-            env->projectiles[i].active = 1;
-            env->projectiles[i].homing = 0;
-            
-            float dx = target_x - start_x;
-            float dy = target_y - start_y;
-            float dist = sqrtf(dx * dx + dy * dy);
-            
-            if (dist > 0) {
-                env->projectiles[i].vel_x = (dx / dist) * PROJECTILE_SPEED_FAST;
-                env->projectiles[i].vel_y = (dy / dist) * PROJECTILE_SPEED_FAST;
-            }
-            break;
-        }
+    Projectile* proj = find_available_projectile(env);
+    if (proj) {
+        setup_basic_projectile(proj, start_x, start_y, type, damage, PROJECTILE_LIFETIME, 0);
+        init_projectile_velocity(proj, start_x, start_y, target_x, target_y, PROJECTILE_SPEED_FAST);
     }
 }
 
@@ -99,14 +119,8 @@ void execute_monster_attack(Rift* env, Monster* monster) {
     switch (monster->attack_type) {
         case ATTACK_TYPE_MELEE:
         case ATTACK_TYPE_MELEE_PROJECTILE:
-            monster->attack_animation_timer = 20;
-            if (monster->damage >= env->player.health) {
-                env->player.health = 0;
-                env->player.alive = 0;
-            } else {
-                env->player.health -= monster->damage;
-            }
-            env->episode_damage_taken += monster->damage;
+            monster->attack_animation_timer = COMBAT.attack_animation_melee;
+            apply_damage_to_player(env, monster->damage);
             break;
             
         case ATTACK_TYPE_PROJECTILE:
@@ -125,7 +139,7 @@ void execute_monster_attack(Rift* env, Monster* monster) {
             break;
             
         case ATTACK_TYPE_CONE_SLAM:
-            monster->attack_animation_timer = 30;
+            monster->attack_animation_timer = COMBAT.attack_animation_cone_slam;
             
             float dx = env->player.x - monster->x;
             float dy = env->player.y - monster->y;
@@ -136,14 +150,8 @@ void execute_monster_attack(Rift* env, Monster* monster) {
                 float monster_facing = atan2f(env->player.y - monster->y, env->player.x - monster->x);
                 float angle_diff = fabsf(angle_to_player - monster_facing);
                 
-                if (angle_diff <= PI/3 || angle_diff >= (2*PI - PI/3)) {
-                    if (monster->damage >= env->player.health) {
-                        env->player.health = 0;
-                        env->player.alive = 0;
-                    } else {
-                        env->player.health -= monster->damage;
-                    }
-                    env->episode_damage_taken += monster->damage;
+                if (angle_diff <= COMBAT.cone_attack_angle || angle_diff >= COMBAT.cone_attack_tolerance) {
+                    apply_damage_to_player(env, monster->damage);
                 }
             }
             break;
@@ -156,19 +164,8 @@ void execute_boss_attack(Rift* env) {
     float dist = distance(env->player.x, env->player.y, env->boss.x, env->boss.y);
     
     if (dist <= BOSS_ATTACK_RANGE && env->boss.attack_cooldown == 0) {
-        env->episode_damage_taken += env->boss.damage;
         env->boss.attack_cooldown = GetScaledAttackCooldown(BOSS_ATTACK_COOLDOWN, env->current_rift_level);
-        
-        if (env->boss.damage >= env->player.health) {
-            env->player.health = 0;
-            env->player.alive = 0;
-            env->step_reward += env->config.death_penalty;
-            env->episode_return += env->config.death_penalty;
-            env->episode_death_penalties += env->config.death_penalty;
-            env->episode_deaths++;
-        } else {
-            env->player.health -= env->boss.damage;
-        }
+        apply_damage_to_player(env, env->boss.damage);
     }
 }
 
@@ -178,13 +175,10 @@ void update_projectiles(Rift* env) {
             Projectile* proj = &env->projectiles[i];
             
             if (proj->homing && env->player.alive) {
-                float dx = env->player.x - proj->x;
-                float dy = env->player.y - proj->y;
                 float dist = distance(proj->x, proj->y, env->player.x, env->player.y);
                 
-                if (dist > 0.1f) {
-                    proj->vel_x = (dx / dist) * PROJECTILE_SPEED_HOMING;
-                    proj->vel_y = (dy / dist) * PROJECTILE_SPEED_HOMING;
+                if (dist > COMBAT.homing_distance_threshold) {
+                    init_projectile_velocity(proj, proj->x, proj->y, env->player.x, env->player.y, PROJECTILE_SPEED_HOMING);
                 }
             }
             
@@ -206,19 +200,7 @@ void update_projectiles(Rift* env) {
             
             float dist_to_player = distance(env->player.x, env->player.y, proj->x, proj->y);
             if (dist_to_player <= PROJECTILE_HIT_RADIUS && env->player.alive) {
-                env->episode_damage_taken += proj->damage;
-                
-                if (proj->damage >= env->player.health) {
-                    env->player.health = 0;
-                    env->player.alive = 0;
-                    env->step_reward += env->config.death_penalty;
-                    env->episode_return += env->config.death_penalty;
-                    env->episode_death_penalties += env->config.death_penalty;
-                    env->episode_deaths++;
-                } else {
-                    env->player.health -= proj->damage;
-                }
-                
+                apply_damage_to_player(env, proj->damage);
                 proj->active = 0;
             }
         }

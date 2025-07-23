@@ -24,11 +24,11 @@ static const ActionTypes ACTIONS = {
 // MAP AND CELL CONSTANTS
 // ============================================================================
 typedef struct {
-    int width, height, size, border_size;
+    uint32_t width, height, size, border_size;
 } MapConfig;
 
 typedef struct {
-    int empty, wall, floor, door, vendor;
+    uint32_t empty, wall, floor, door, vendor;
 } CellTypes;
 
 static const MapConfig MAP = {
@@ -43,15 +43,15 @@ static const CellTypes CELLS = {
 // GAME PHASE CONSTANTS
 // ============================================================================
 typedef struct {
-    int rift, town;
+    uint32_t rift, town;
 } PhaseTypes;
 
 typedef struct {
-    int zombie, mage, heavy_melee, light, elite;
+    uint32_t zombie, mage, heavy_melee, light, elite;
 } MonsterTypes;
 
 typedef struct {
-    int rift_guardian;
+    uint32_t rift_guardian;
 } BossTypes;
 
 typedef struct {
@@ -75,12 +75,39 @@ static const ItemTypes ITEMS = {
 };
 
 // ============================================================================
+// STAT INDICES CONSTANTS  
+// ============================================================================
+typedef struct {
+    int strength, dexterity, intelligence, vitality;
+} StatIndices;
+
+static const StatIndices STAT_IDX = {
+    .strength = 0, .dexterity = 1, .intelligence = 2, .vitality = 3
+};
+
+// ============================================================================
+// REWARD PENALTY CONSTANTS
+// ============================================================================
+typedef struct {
+    uint32_t stat_decrease_penalty_multiplier;
+    float no_change_same_ilvl_penalty;
+    float no_change_penalty;
+} RewardPenalties;
+
+static const RewardPenalties REWARD_PENALTIES = {
+    .stat_decrease_penalty_multiplier = 2,
+    .no_change_same_ilvl_penalty = -2.0f,
+    .no_change_penalty = -3.0f
+};
+
+// ============================================================================
 // GAME MECHANICS CONSTANTS
 // ============================================================================
 
 typedef struct {
-    int activation_cooldown, damage, damage_interval, duration;
-    int mana_cost, max_areas;
+    int activation_cooldown, damage_interval, duration;
+    uint32_t damage, mana_cost;
+    uint32_t max_areas;
     float radius;
 } BlizzardConfig;
 
@@ -135,7 +162,8 @@ static const MonsterTypeConfig MONSTER_STATS = {
 };
 
 typedef struct {
-    int max_items, max_inventory_size, mana_regen_rate;
+    uint32_t max_items, max_inventory_size;
+    uint32_t mana_regen_rate;
     int health_potion_cooldown, mana_potion_cooldown;
     float health_potion_heal_percent, mana_potion_restore_percent;
 } PotionConfig;
@@ -165,7 +193,7 @@ typedef struct {
 } AttackTypes;
 
 typedef struct {
-    int max_projectiles;
+    uint32_t max_projectiles;
     float speed, speed_fast, speed_homing, hit_radius;
 } ProjectileConfig;
 
@@ -184,6 +212,10 @@ typedef struct {
 } MapGenConfig;
 
 typedef struct {
+    float spawn_radius_min, spawn_radius_max;
+} WorldConstConfig;
+
+typedef struct {
     int max_episode_length, grid_size, grid_obs_size;
     int player_obs_size, shop_slots_obs, equipment_slots_obs;
     int town_interface_obs, town_obs_size, obs_size;
@@ -196,6 +228,10 @@ typedef struct {
 
 static const MapGenConfig MAPGEN = {
     .spawn_check_distance = 8.0f
+};
+
+static const WorldConstConfig WORLD_CONST = {
+    .spawn_radius_min = 3.0f, .spawn_radius_max = 8.0f
 };
 
 static const ObservationConfig OBSERVATION = {
@@ -274,7 +310,7 @@ static const NormalizationConfig NORMALIZATION = {
 // ============================================================================
 
 typedef struct {
-    int idle_frames, walk_frames, cast_frames;
+    uint32_t idle_frames, walk_frames, cast_frames;
     int animation_speed;
     int idle_state, walk_state, cast_state;
 } HeroAnimationConfig;
@@ -308,7 +344,7 @@ typedef struct {
 typedef struct {
     int base_alpha, duration;
     int damage_interval;
-    int ice_shard_count;
+    uint32_t ice_shard_count;
     int shard_timing_mult, shard_cycle_frames;
     int shard_fall_speed, shard_size_min, shard_size_range;
     int frost_line_size;
@@ -651,7 +687,7 @@ static const MapCalculationConfig MAP_CALCULATIONS = {
 
 
 typedef struct {
-    int fireball, ice_shard, stone_chunk, energy_bolt, dark_orb, melee_strike;
+    uint32_t fireball, ice_shard, stone_chunk, energy_bolt, dark_orb, melee_strike;
 } ProjectileTypes;
 
 static const ProjectileTypes PROJECTILE_TYPES = {
@@ -727,11 +763,11 @@ static const ProjectileTypes PROJECTILE_TYPES = {
 #define TOWN_INPUT_COOLDOWN 8       // Frames between WASD inputs (prevents rapid navigation)
 
 typedef struct {
-    int shop, character;
+    uint32_t shop, character;
 } TownTabs;
 
 typedef struct {
-    int equipment, inventory;
+    uint32_t equipment, inventory;
 } CharacterModes;
 
 static const TownTabs TOWN_TAB = {
@@ -743,10 +779,10 @@ static const CharacterModes CHARACTER_MODE = {
 };
 
 typedef struct {
-    int none, shoulders, gloves, ring_left, weapon;
-    int helmet, armor, belt, pants, boots;
-    int amulet, bracers, ring_right, offhand, consumable;
-    int ring;
+    uint32_t none, shoulders, gloves, ring_left, weapon;
+    uint32_t helmet, armor, belt, pants, boots;
+    uint32_t amulet, bracers, ring_right, offhand, consumable;
+    uint32_t ring;
 } EquipmentTypes;
 
 typedef struct {
@@ -764,6 +800,18 @@ static const QualityTypes QUALITY = {
     .common = 0, .rare = 1, .epic = 2, .legendary = 3
 };
 
+
+
+
+
+
+
+
+
+
+
+
+// Equipment slot constants (needed by render_core.h)
 #define EQUIPMENT_SHOULDERS 1
 #define EQUIPMENT_GLOVES 2
 #define EQUIPMENT_RING_LEFT 3
@@ -778,70 +826,32 @@ static const QualityTypes QUALITY = {
 #define EQUIPMENT_RING_RIGHT 12
 #define EQUIPMENT_OFFHAND 13
 
+// Quality constants (needed by render_core.h)
 #define QUALITY_COMMON 0
 #define QUALITY_RARE 1
 #define QUALITY_EPIC 2
 #define QUALITY_LEGENDARY 3
 
+// Monster constants (needed by render_core.h)
 #define MONSTER_ZOMBIE 0
 #define MONSTER_MAGE 1
 #define MONSTER_HEAVY_MELEE 2
 #define MONSTER_LIGHT 3
 #define MONSTER_ELITE 4
 
-// Missing combat and world constants
-#define MAP_WIDTH 50
-#define MAP_HEIGHT 38
-#define BOSS_RIFT_GUARDIAN 0
-#define BOSS_BASE_HEALTH 100
-#define BOSS_BASE_DAMAGE 15
-#define BOSS_ATTACK_RANGE 3.0f
-#define BOSS_ATTACK_COOLDOWN 45
-#define MAX_PROJECTILES 50
-#define PROJECTILE_LIFETIME 60
-#define PROJECTILE_SPEED 4.0f
-#define PROJECTILE_SPEED_HOMING 3.0f
-#define PROJECTILE_SPEED_FAST 6.0f
-#define PROJECTILE_HIT_RADIUS 1.0f
-#define PROJECTILE_FIREBALL 0
-#define BLIZZARD_DURATION 60
-#define BLIZZARD_DAMAGE 15
-#define BLIZZARD_DAMAGE_INTERVAL 15
-#define RIFT_COMPLETION_THRESHOLD 0.8f
-#define MAX_BLIZZARD_AREAS 10
-#define TOWN_TAB_SHOP 0
-#define TOWN_TAB_CHARACTER 1
-#define MONSTERS_TO_SPAWN 38
-
-// Attack type constants for switch statements
-#define ATTACK_TYPE_MELEE 0
-#define ATTACK_TYPE_PROJECTILE 1
-#define ATTACK_TYPE_CONE_SLAM 2
-#define ATTACK_TYPE_FAST_PROJECTILE 3
-#define ATTACK_TYPE_HOMING_PROJECTILE 4
-#define ATTACK_TYPE_MELEE_PROJECTILE 5
-#define ATTACK_TYPE_BOSS_GROUND_SLAM 6
-#define ATTACK_TYPE_BOSS_CONE 7
-
-// Phase constants for legacy code
-#define PHASE_RIFT 0
-#define PHASE_TOWN 1
-
-// Character mode constants
-#define CHARACTER_MODE_EQUIPMENT 0
-#define CHARACTER_MODE_INVENTORY 1
-
+// Item constants (needed by render_core.h)
 #define ITEM_GOLD 0
 #define ITEM_HEALTH_POTION 1
 #define ITEM_MANA_POTION 2
 
+// Tile constants (needed by render_core.h)
 #define TILE_STONE_FLOOR 0
 #define TILE_STONE_WALL 1
 #define TILE_STONE_DOOR 2
 #define TILE_TOWN_FLOOR 3
 #define TILE_VENDOR_STALL 4
 
-// Action constants for legacy code
+// Action constants (needed by other files)
 #define ACTION_MOVE_UP 0
 #define ACTION_MOVE_DOWN 1
 #define ACTION_MOVE_LEFT 2
@@ -860,9 +870,45 @@ static const QualityTypes QUALITY = {
 #define ACTION_SWITCH_TO_CHARACTER 15
 #define ACTION_REROLL_SHOP 16
 
-// Shop constants
+// Shop constants (needed by render_town.h)
 #define SHOP_ITEMS_COUNT 10
 #define INVENTORY_SLOTS 12
+
+// Additional constants needed by other files
+#define BLIZZARD_DURATION 60
+#define BLIZZARD_DAMAGE 15
+#define BLIZZARD_DAMAGE_INTERVAL 15
+#define MAX_BLIZZARD_AREAS 10
+#define MONSTERS_TO_SPAWN 38
+#define RIFT_COMPLETION_THRESHOLD 0.8f
+#define TOWN_TAB_SHOP 0
+#define TOWN_TAB_CHARACTER 1
+#define PHASE_RIFT 0
+#define PHASE_TOWN 1
+#define CHARACTER_MODE_EQUIPMENT 0
+#define CHARACTER_MODE_INVENTORY 1
+#define MAP_WIDTH 50
+#define MAP_HEIGHT 38
+#define BOSS_RIFT_GUARDIAN 0
+#define BOSS_BASE_HEALTH 100
+#define BOSS_BASE_DAMAGE 15
+#define BOSS_ATTACK_RANGE 3.0f
+#define BOSS_ATTACK_COOLDOWN 45
+#define MAX_PROJECTILES 50
+#define PROJECTILE_LIFETIME 60
+#define PROJECTILE_SPEED 4.0f
+#define PROJECTILE_SPEED_HOMING 3.0f
+#define PROJECTILE_SPEED_FAST 6.0f
+#define PROJECTILE_HIT_RADIUS 1.0f
+#define PROJECTILE_FIREBALL 0
+#define ATTACK_TYPE_MELEE 0
+#define ATTACK_TYPE_PROJECTILE 1
+#define ATTACK_TYPE_CONE_SLAM 2
+#define ATTACK_TYPE_FAST_PROJECTILE 3
+#define ATTACK_TYPE_HOMING_PROJECTILE 4
+#define ATTACK_TYPE_MELEE_PROJECTILE 5
+#define ATTACK_TYPE_BOSS_GROUND_SLAM 6
+#define ATTACK_TYPE_BOSS_CONE 7
 
 // Town layout positions
 #define VENDOR_POSITION_X 25
