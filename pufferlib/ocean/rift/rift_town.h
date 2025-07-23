@@ -157,9 +157,9 @@ void give_stat_based_rewards(Rift* env, uint32_t old_str, uint32_t old_dex, uint
     float stat_reward = 0.0f;
     
     if (total_stat_diff > 0) {
-        stat_reward = total_stat_diff * TOWN_STAT_INCREASE_REWARD;
+        stat_reward = total_stat_diff * env->town_stat_increase_reward;
     } else if (total_stat_diff < 0) {
-        stat_reward = total_stat_diff * TOWN_STAT_DECREASE_PENALTY * REWARD_PENALTIES.stat_decrease_penalty_multiplier;
+        stat_reward = total_stat_diff * env->town_stat_decrease_penalty * REWARD_PENALTIES.stat_decrease_penalty_multiplier;
     } else if (total_stat_diff == 0) {
         if (ilvl_diff < 0) {
             stat_reward = REWARD_PENALTIES.no_change_penalty * abs(ilvl_diff);
@@ -168,7 +168,7 @@ void give_stat_based_rewards(Rift* env, uint32_t old_str, uint32_t old_dex, uint
         }
     }
     
-    float ilvl_reward = ilvl_diff * (ilvl_diff >= 0 ? TOWN_ILVL_INCREASE_REWARD : TOWN_ILVL_DECREASE_PENALTY);
+    float ilvl_reward = ilvl_diff * (ilvl_diff >= 0 ? env->town_ilvl_increase_reward : env->town_ilvl_decrease_penalty);
     
     env->step_reward += stat_reward + ilvl_reward;
     env->episode_return += stat_reward + ilvl_reward;

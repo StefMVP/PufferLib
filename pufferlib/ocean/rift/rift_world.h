@@ -302,9 +302,9 @@ void update_player(Rift* env) {
         if (health_percent <= LOW_HEALTH_THRESHOLD && 
             env->player.health_potion_cooldown == 0 && 
             env->player.low_health_penalty_cooldown == 0) {
-            env->step_reward += LOW_HEALTH_PENALTY;
-            env->episode_return += LOW_HEALTH_PENALTY;
-            env->episode_low_health_penalties += LOW_HEALTH_PENALTY;
+            env->step_reward += env->low_health_penalty;
+            env->episode_return += env->low_health_penalty;
+            env->episode_low_health_penalties += env->low_health_penalty;
             env->player.low_health_penalty_cooldown = LOW_HEALTH_PENALTY_COOLDOWN;
         }
     }

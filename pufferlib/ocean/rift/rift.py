@@ -30,6 +30,16 @@ class Rift(pufferlib.PufferEnv):
         report_interval=128,
         buf=None,
         seed=0,
+        completion_reward=10.0,
+        monster_kill_reward=10.0,
+        death_penalty=0.0,
+        episode_length_limit=12000,
+        town_stat_increase_reward=1.0,
+        town_ilvl_increase_reward=2.0,
+        town_stat_decrease_penalty=-1.0,
+        town_ilvl_decrease_penalty=-2.0,
+        town_no_purchases_penalty=-5.0,
+        low_health_penalty=-2.0,
     ):
         
         # Full observation space: 22 player stats + 100 grid cells + 101 town interface stats  
@@ -69,6 +79,16 @@ class Rift(pufferlib.PufferEnv):
             'width': width,
             'height': height,
             'cell_size': cell_size,
+            'completion_reward': completion_reward,
+            'monster_kill_reward': monster_kill_reward,
+            'death_penalty': death_penalty,
+            'episode_length_limit': episode_length_limit,
+            'town_stat_increase_reward': town_stat_increase_reward,
+            'town_ilvl_increase_reward': town_ilvl_increase_reward,
+            'town_stat_decrease_penalty': town_stat_decrease_penalty,
+            'town_ilvl_decrease_penalty': town_ilvl_decrease_penalty,
+            'town_no_purchases_penalty': town_no_purchases_penalty,
+            'low_health_penalty': low_health_penalty,
         }
         
         self.c_envs = binding.vec_init(

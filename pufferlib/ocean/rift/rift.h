@@ -321,6 +321,14 @@ typedef struct Rift {
     TownInterface town_interface;
     
     GameConfig config;
+    
+    float town_stat_increase_reward;
+    float town_ilvl_increase_reward;
+    float town_stat_decrease_penalty;
+    float town_ilvl_decrease_penalty;
+    float town_no_purchases_penalty;
+    float low_health_penalty;
+    
     uint32_t tick;
     uint32_t current_phase;
     uint32_t current_rift_level;

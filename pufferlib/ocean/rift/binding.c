@@ -4,6 +4,16 @@
 #include "../env_binding.h"
 
 static int my_init(Env *env, PyObject *args, PyObject *kwargs) {
+    env->config.completion_reward = unpack(kwargs, "completion_reward");
+    env->config.monster_kill_reward = unpack(kwargs, "monster_kill_reward");
+    env->config.death_penalty = unpack(kwargs, "death_penalty");
+    env->config.episode_length_limit = unpack(kwargs, "episode_length_limit");
+    env->town_stat_increase_reward = unpack(kwargs, "town_stat_increase_reward");
+    env->town_ilvl_increase_reward = unpack(kwargs, "town_ilvl_increase_reward");
+    env->town_stat_decrease_penalty = unpack(kwargs, "town_stat_decrease_penalty");
+    env->town_ilvl_decrease_penalty = unpack(kwargs, "town_ilvl_decrease_penalty");
+    env->town_no_purchases_penalty = unpack(kwargs, "town_no_purchases_penalty");
+    env->low_health_penalty = unpack(kwargs, "low_health_penalty");
     allocate(env);
     return 0;
 }
