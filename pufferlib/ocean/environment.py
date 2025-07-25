@@ -154,6 +154,7 @@ MAKE_FUNCTIONS = {
     'checkers': 'Checkers',
     'asteroids': 'Asteroids',
     'rift': 'Rift',
+    'fortress_survival': 'FortressSurvival',
     'spaces': make_spaces,
     'multiagent': make_multiagent,
 }
