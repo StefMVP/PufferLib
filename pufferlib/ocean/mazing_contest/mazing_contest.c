@@ -103,7 +103,7 @@ int is_valid_position(int x, int y) {
     return x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT;
 }
 
-int can_place_tower(mazing_contest* env, int x, int y, TowerType type) {
+int can_place_tower(MazingContest* env, int x, int y, TowerType type) {
     if (!is_valid_position(x, y)) return 0;
     if (env->grid[x][y] != 0) {
         // Already occupied (includes random obstacles)
@@ -146,7 +146,7 @@ int heuristic(int x1, int y1, int x2, int y2) {
 }
 
 // A* pathfinding - returns 1 if path found, 0 if no path
-int find_next_step(mazing_contest* env, int start_x, int start_y, int end_x, int end_y, int* next_x, int* next_y) {
+int find_next_step(MazingContest* env, int start_x, int start_y, int end_x, int end_y, int* next_x, int* next_y) {
     if (start_x == end_x && start_y == end_y) {
         *next_x = start_x;
         *next_y = start_y;
@@ -287,13 +287,13 @@ int find_next_step(mazing_contest* env, int start_x, int start_y, int end_x, int
 }
 
 // Simple path existence check
-int find_path(mazing_contest* env, int start_x, int start_y, int end_x, int end_y) {
+int find_path(MazingContest* env, int start_x, int start_y, int end_x, int end_y) {
     int dummy_x, dummy_y;
     return find_next_step(env, start_x, start_y, end_x, end_y, &dummy_x, &dummy_y);
 }
 
 // Calculate path length using BFS - returns number of steps in optimal path
-int calculate_path_length(mazing_contest* env, int start_x, int start_y, int end_x, int end_y) {
+int calculate_path_length(MazingContest* env, int start_x, int start_y, int end_x, int end_y) {
     if (start_x == end_x && start_y == end_y) {
         return 0;
     }
@@ -361,15 +361,15 @@ int calculate_path_length(mazing_contest* env, int start_x, int start_y, int end
     return -1; // No path found
 }
 
-void place_tower(mazing_contest* env, int x, int y, TowerType type) {
+void place_tower(MazingContest* env, int x, int y, TowerType type) {
     place_tower_full(env, x, y, type, 1, 0);  // Default: deduct resources, not random
 }
 
-void place_tower_with_cost(mazing_contest* env, int x, int y, TowerType type, int deduct_resources) {
+void place_tower_with_cost(MazingContest* env, int x, int y, TowerType type, int deduct_resources) {
     place_tower_full(env, x, y, type, deduct_resources, 0);  // Not random obstacle
 }
 
-void place_tower_full(mazing_contest* env, int x, int y, TowerType type, int deduct_resources, int is_random_obstacle) {
+void place_tower_full(MazingContest* env, int x, int y, TowerType type, int deduct_resources, int is_random_obstacle) {
     // ALWAYS check basic validity first
     if (!is_valid_position(x, y)) return;
     if (env->grid[x][y] != 0) return;  // Already occupied by ANYTHING
@@ -467,7 +467,7 @@ void place_tower_full(mazing_contest* env, int x, int y, TowerType type, int ded
     }
 }
 
-void check_tower_proximity(mazing_contest* env) {
+void check_tower_proximity(MazingContest* env) {
     // Get runner's current grid position
     int runner_x, runner_y;
     world_to_grid(env->runner.x, env->runner.y, &runner_x, &runner_y, &env->config);
@@ -547,7 +547,7 @@ void check_tower_proximity(mazing_contest* env) {
     }
 }
 
-void move_runner(mazing_contest* env) {
+void move_runner(MazingContest* env) {
     Runner* runner = &env->runner;
     
     // Get current grid position
@@ -641,7 +641,7 @@ void move_runner(mazing_contest* env) {
     }
 }
 
-void update_thunderclap_effects(mazing_contest* env) {
+void update_thunderclap_effects(MazingContest* env) {
     // Update existing thunderclap effects
     for (int i = 0; i < env->num_thunderclap_effects; i++) {
         ThunderclapEffect* effect = &env->thunderclap_effects[i];
@@ -658,7 +658,7 @@ void update_thunderclap_effects(mazing_contest* env) {
     }
 }
 
-void update_thunderclap_towers(mazing_contest* env) {
+void update_thunderclap_towers(MazingContest* env) {
     // ULTRA-OPTIMIZED: Pre-compute runner position and range check
     float runner_x = env->runner.x;
     float runner_y = env->runner.y;
@@ -722,7 +722,7 @@ void update_thunderclap_towers(mazing_contest* env) {
     }
 }
 
-void compute_observations(mazing_contest* env) {
+void compute_observations(MazingContest* env) {
     float* obs = env->observations;
     int idx = 0;
     
@@ -748,7 +748,7 @@ void compute_observations(mazing_contest* env) {
     obs[idx++] = env->config.goal_enabled ? (float)env->goal_y / (float)GRID_HEIGHT : 0.0f; // Goal Y position (normalized)
 }
 
-void add_log(mazing_contest* env) {
+void add_log(MazingContest* env) {
     env->log.episode_return += env->episode_return;
     env->log.episode_length += env->tick;  // Like drone_race
     env->log.n += 1;
@@ -832,7 +832,7 @@ void add_log(mazing_contest* env) {
     // Maze completion rate removed - all mazes complete, it's about delay time
 }
 
-void init_round(mazing_contest* env) {
+void init_round(MazingContest* env) {
     // Reset grid
     memset(env->grid, 0, sizeof(env->grid));
     
@@ -908,7 +908,7 @@ void init_round(mazing_contest* env) {
     }
 }
 
-void allocate(mazing_contest* env) {
+void allocate(MazingContest* env) {
     // Don't reset config here - it should be set by binding
     env->tick = 0;
     env->episode_return = 0.0f;
@@ -953,7 +953,7 @@ void allocate(mazing_contest* env) {
     init_round(env);
 }
 
-void place_random_obstacles(mazing_contest* env) {
+void place_random_obstacles(MazingContest* env) {
     // ULTRA-OPTIMIZED: Pre-generate valid positions to avoid repeated validation
     static int valid_positions[GRID_WIDTH * GRID_HEIGHT][2];
     int valid_count = 0;
@@ -998,7 +998,7 @@ void place_random_obstacles(mazing_contest* env) {
     // place_random_thunderclaps(env);
 }
 
-void place_random_thunderclaps(mazing_contest* env) {
+void place_random_thunderclaps(MazingContest* env) {
     // DISABLED: This function can be re-enabled later by calling it from place_random_obstacles
     // and updating the config values for min_random_thunderclaps and max_random_thunderclaps
     
@@ -1043,7 +1043,7 @@ void place_random_thunderclaps(mazing_contest* env) {
     }
 }
 
-void place_goal(mazing_contest* env) {
+void place_goal(MazingContest* env) {
     // Find valid positions for goal: at least 2 squares away from entrance and exit
     static int valid_positions[GRID_WIDTH * GRID_HEIGHT][2];
     int valid_count = 0;
@@ -1103,7 +1103,7 @@ void place_goal(mazing_contest* env) {
            env->goal_x, env->goal_y, env->entrance_x, env->entrance_y, env->exit_x, env->exit_y);
 }
 
-void c_reset(mazing_contest* env) {
+void c_reset(MazingContest* env) {
     env->tick = 0;
     env->episode_return = 0.0f;
     env->total_path_length = 0.0f;
@@ -1120,7 +1120,7 @@ void c_reset(mazing_contest* env) {
     compute_observations(env);
 }
 
-void c_step(mazing_contest* env) {
+void c_step(MazingContest* env) {
     env->tick++;  // Increment tick at START like drone_race
     env->rewards[0] = 0.0f;
     env->terminals[0] = 0;
@@ -1291,7 +1291,7 @@ void c_step(mazing_contest* env) {
     compute_observations(env);
 }
 
-Client* make_client(mazing_contest* env) {
+Client* make_client(MazingContest* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->cell_size = env->config.cell_size_render;
     client->width = GRID_WIDTH * client->cell_size;
@@ -1308,7 +1308,7 @@ void close_client(Client* client) {
     free(client);
 }
 
-void c_render(mazing_contest* env) {
+void c_render(MazingContest* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
@@ -1584,14 +1584,14 @@ void c_render(mazing_contest* env) {
     EndDrawing();
 }
 
-void c_close(mazing_contest* env) {
+void c_close(MazingContest* env) {
     if (env->client) {
         close_client(env->client);
         env->client = NULL;
     }
 }
 
-void free_allocated(mazing_contest* env) {
+void free_allocated(MazingContest* env) {
     free(env->observations);
     free(env->actions);
     free(env->rewards);

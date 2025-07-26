@@ -148,7 +148,7 @@ def test_performance(timeout=10, atn_cache=1024):
     return fps
 
 if __name__ == '__main__':
-    env = mazing_contest(num_envs=1, render_mode='human')
+    env = MazingContest(num_envs=1, render_mode='human')
     obs, info = env.reset()
     
     print(f"Observation shape: {obs.shape}")

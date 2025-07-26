@@ -156,6 +156,7 @@ MAKE_FUNCTIONS = {
     'rift': 'Rift',
     'fortress_survival': 'FortressSurvival',
     'mazing_contest': 'MazingContest',
+    'plane_simulator': 'PlaneSimulator',
     'spaces': make_spaces,
     'multiagent': make_multiagent,
 }

@@ -231,7 +231,7 @@ typedef struct {
     
     // Logging
     Log log;
-} mazing_contest;
+} MazingContest;
 
 // Default configuration
 extern const GameConfig DEFAULT_CONFIG;
@@ -246,28 +246,28 @@ int get_tower_lumber_cost(TowerType type);
 void grid_to_world(int grid_x, int grid_y, float* world_x, float* world_y, GameConfig* config);
 void world_to_grid(float world_x, float world_y, int* grid_x, int* grid_y, GameConfig* config);
 int is_valid_position(int x, int y);
-int can_place_tower(mazing_contest* env, int x, int y, TowerType type);
-int find_next_step(mazing_contest* env, int start_x, int start_y, int end_x, int end_y, int* next_x, int* next_y);
-int find_path(mazing_contest* env, int start_x, int start_y, int end_x, int end_y);
-int calculate_path_length(mazing_contest* env, int start_x, int start_y, int end_x, int end_y);
-void place_tower(mazing_contest* env, int x, int y, TowerType type);
-void place_tower_with_cost(mazing_contest* env, int x, int y, TowerType type, int deduct_resources);
-void place_tower_full(mazing_contest* env, int x, int y, TowerType type, int deduct_resources, int is_random_obstacle);
-void check_tower_proximity(mazing_contest* env);
-void move_runner(mazing_contest* env);
-void update_thunderclap_effects(mazing_contest* env);
-void update_thunderclap_towers(mazing_contest* env);
-void compute_observations(mazing_contest* env);
-void add_log(mazing_contest* env);
-void init_round(mazing_contest* env);
-void place_random_obstacles(mazing_contest* env);
-void place_random_thunderclaps(mazing_contest* env);  // Separate function for thunderclaps (disabled)
-void place_goal(mazing_contest* env);                // Place goal with distance constraints
-void allocate(mazing_contest* env);
-void c_reset(mazing_contest* env);
-void c_step(mazing_contest* env);
-Client* make_client(mazing_contest* env);
+int can_place_tower(MazingContest* env, int x, int y, TowerType type);
+int find_next_step(MazingContest* env, int start_x, int start_y, int end_x, int end_y, int* next_x, int* next_y);
+int find_path(MazingContest* env, int start_x, int start_y, int end_x, int end_y);
+int calculate_path_length(MazingContest* env, int start_x, int start_y, int end_x, int end_y);
+void place_tower(MazingContest* env, int x, int y, TowerType type);
+void place_tower_with_cost(MazingContest* env, int x, int y, TowerType type, int deduct_resources);
+void place_tower_full(MazingContest* env, int x, int y, TowerType type, int deduct_resources, int is_random_obstacle);
+void check_tower_proximity(MazingContest* env);
+void move_runner(MazingContest* env);
+void update_thunderclap_effects(MazingContest* env);
+void update_thunderclap_towers(MazingContest* env);
+void compute_observations(MazingContest* env);
+void add_log(MazingContest* env);
+void init_round(MazingContest* env);
+void place_random_obstacles(MazingContest* env);
+void place_random_thunderclaps(MazingContest* env);  // Separate function for thunderclaps (disabled)
+void place_goal(MazingContest* env);                // Place goal with distance constraints
+void allocate(MazingContest* env);
+void c_reset(MazingContest* env);
+void c_step(MazingContest* env);
+Client* make_client(MazingContest* env);
 void close_client(Client* client);
-void c_render(mazing_contest* env);
-void c_close(mazing_contest* env);
-void free_allocated(mazing_contest* env);
+void c_render(MazingContest* env);
+void c_close(MazingContest* env);
+void free_allocated(MazingContest* env);
