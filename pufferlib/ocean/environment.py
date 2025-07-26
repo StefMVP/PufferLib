@@ -155,6 +155,7 @@ MAKE_FUNCTIONS = {
     'asteroids': 'Asteroids',
     'rift': 'Rift',
     'fortress_survival': 'FortressSurvival',
+    'mazing_contest': 'MazingContest',
     'spaces': make_spaces,
     'multiagent': make_multiagent,
 }
