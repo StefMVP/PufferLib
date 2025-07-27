@@ -157,6 +157,7 @@ MAKE_FUNCTIONS = {
     'fortress_survival': 'FortressSurvival',
     'mazing_contest': 'MazingContest',
     'plane_simulator': 'PlaneSimulator',
+    'poker': 'Poker',
     'spaces': make_spaces,
     'multiagent': make_multiagent,
 }
