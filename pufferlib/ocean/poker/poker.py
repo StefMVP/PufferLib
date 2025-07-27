@@ -15,11 +15,13 @@ class Poker(pufferlib.PufferEnv):
         self,
         num_envs=1,
         render_mode=None,
-        width=800,
-        height=600,
+        width=1000,
+        height=750,
         starting_stack=200,
         small_blind=1,
         big_blind=2,
+        self_play_mode=False,
+        generation_number=1,
         report_interval=128,
         buf=None,
         seed=0,
@@ -39,12 +41,18 @@ class Poker(pufferlib.PufferEnv):
         super().__init__(buf)
         self.actions = self.actions.astype(np.float32)
 
+        # Convert boolean string to int
+        if isinstance(self_play_mode, str):
+            self_play_mode = self_play_mode.lower() in ('true', '1', 'yes', 'on')
+        
         kwargs = {
             'width': width,
             'height': height,
             'starting_stack': starting_stack,
             'small_blind': small_blind,
             'big_blind': big_blind,
+            'self_play_mode': int(self_play_mode),
+            'generation_number': int(generation_number),
         }
         
         self.c_envs = binding.vec_init(
