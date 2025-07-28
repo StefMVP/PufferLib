@@ -3,9 +3,10 @@
 
 static PyObject* set_opponent_action(PyObject* self, PyObject* args);
 static PyObject* vec_set_opponent_action(PyObject* self, PyObject* args);
+static PyObject* vec_set_batch_opponent_actions(PyObject* self, PyObject* args);
 
 #define Env Poker
-#define MY_METHODS {"set_opponent_action", (PyCFunction)set_opponent_action, METH_VARARGS, "Set opponent action"}, {"vec_set_opponent_action", (PyCFunction)vec_set_opponent_action, METH_VARARGS, "Set opponent action for vectorized environments"}
+#define MY_METHODS {"set_opponent_action", (PyCFunction)set_opponent_action, METH_VARARGS, "Set opponent action"}, {"vec_set_opponent_action", (PyCFunction)vec_set_opponent_action, METH_VARARGS, "Set opponent action for vectorized environments"}, {"vec_set_batch_opponent_actions", (PyCFunction)vec_set_batch_opponent_actions, METH_VARARGS, "Set all opponent actions at once"}
 
 #include "../env_binding.h"
 
@@ -223,6 +224,64 @@ static PyObject* vec_set_opponent_action(PyObject* self, PyObject* args) {
     
     env->opponent_action_value = action;
     env->opponent_action_set = 1;
+    
+    Py_RETURN_NONE;
+}
+
+// VECTORIZED: Set all opponent actions at once - eliminate Python loop
+static PyObject* vec_set_batch_opponent_actions(PyObject* self, PyObject* args) {
+    if (PyTuple_Size(args) != 2) {
+        PyErr_SetString(PyExc_TypeError, "vec_set_batch_opponent_actions requires 2 arguments: vec_env, actions_array");
+        return NULL;
+    }
+    
+    VecEnv* vec = unpack_vecenv(args);
+    if (!vec) {
+        return NULL;
+    }
+    
+    PyObject* actions_obj = PyTuple_GetItem(args, 1);
+    if (!PyArray_Check(actions_obj)) {
+        PyErr_SetString(PyExc_TypeError, "actions must be a numpy array");
+        return NULL;
+    }
+    
+    PyArrayObject* actions_array = (PyArrayObject*)actions_obj;
+    if (PyArray_NDIM(actions_array) != 1) {
+        PyErr_SetString(PyExc_ValueError, "actions array must be 1-dimensional");
+        return NULL;
+    }
+    
+    int num_actions = PyArray_SIZE(actions_array);
+    if (num_actions != vec->num_envs) {
+        PyErr_SetString(PyExc_ValueError, "actions array size must match number of environments");
+        return NULL;
+    }
+    
+    int* actions_data = (int*)PyArray_DATA(actions_array);
+    
+    // Set actions for all environments in one C loop - FAST
+    for (int i = 0; i < vec->num_envs; i++) {
+        int action = actions_data[i];
+        
+        // Validate action bounds
+        if (action < 0 || action > 4) {
+            char error_msg[200];
+            snprintf(error_msg, sizeof(error_msg), 
+                    "Invalid poker action %d at index %d (must be 0-4)", action, i);
+            PyErr_SetString(PyExc_ValueError, error_msg);
+            return NULL;
+        }
+        
+        Env* env = vec->envs[i];
+        if (!env) {
+            PyErr_SetString(PyExc_ValueError, "Invalid environment at index");
+            return NULL;
+        }
+        
+        env->opponent_action_value = action;
+        env->opponent_action_set = 1;
+    }
     
     Py_RETURN_NONE;
 }
