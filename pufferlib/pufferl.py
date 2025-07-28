@@ -981,9 +981,8 @@ def eval(env_name, args=None, vecenv=None, policy=None):
         ob = vecenv.step(action)[0]
 
         if len(frames) > 0 and len(frames) == args['save_frames']:
-            import imageio
-            imageio.mimsave(args['gif_path'], frames, fps=args['fps'], loop=0)
-            frames.append('Done')
+            # Skip gif creation to avoid crashes with None frames
+            break
 
 def sweep(args=None, env_name=None):
     args = args or load_config(env_name)

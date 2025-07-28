@@ -10,7 +10,7 @@ int generate_dummy_action(Poker* env) {
     
     if (call_amount == 0) {
         if (rand() % 3 == 0) {
-            env->actions[0] = ACTIONS.bet_half_pot;
+            env->actions[0] = ACTIONS.bet_pot;
         } else {
             env->actions[0] = ACTIONS.call;
         }

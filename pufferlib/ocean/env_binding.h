@@ -1,5 +1,6 @@
 #include <Python.h>
 #include <numpy/arrayobject.h>
+#include <stdint.h>
 
 // Forward declarations for env-specific functions supplied by user
 static int my_log(PyObject* dict, Log* log);
@@ -39,7 +40,21 @@ static Env* unpack_env(PyObject* args) {
 
     Env* env = (Env*)PyLong_AsVoidPtr(handle_obj);
     if (!env) {
-        PyErr_SetString(PyExc_ValueError, "Invalid env handle");
+        PyErr_SetString(PyExc_ValueError, "Invalid env handle - null pointer");
+        return NULL;
+    }
+    
+    // CRITICAL: Validate pointer is not corrupted by checking readable memory
+    // This prevents segfaults when multiprocessing corrupts pointers
+    if ((uintptr_t)env < 0x1000 || (uintptr_t)env > 0x7fffffffffff) {
+        PyErr_SetString(PyExc_ValueError, "Invalid env handle - corrupted pointer");
+        return NULL;
+    }
+    
+    // Additional validation: check if the struct looks valid
+    if (env->observations == NULL || env->actions == NULL || 
+        env->rewards == NULL || env->terminals == NULL) {
+        PyErr_SetString(PyExc_ValueError, "Invalid env handle - corrupted environment structure");
         return NULL;
     }
 

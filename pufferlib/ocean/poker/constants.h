@@ -4,12 +4,11 @@
 #include <stdint.h>
 
 typedef struct {
-    int fold, call, bet_quarter_pot, bet_half_pot, bet_pot, bet_double_pot, all_in;
+    int fold, call, check, bet_pot, all_in;
 } ActionTypes;
 
 static const ActionTypes ACTIONS = {
-    .fold = 0, .call = 1, .bet_quarter_pot = 2, .bet_half_pot = 3,
-    .bet_pot = 4, .bet_double_pot = 5, .all_in = 6
+    .fold = 0, .call = 1, .check = 2, .bet_pot = 3, .all_in = 4
 };
 
 typedef struct {
@@ -25,8 +24,8 @@ typedef struct {
 static const PokerConfig POKER = {
     .num_players = 2,
     .max_episode_length = 1000,
-    .action_count = 7,
-    .obs_size = 52 + 20,
+    .action_count = 5,  // fold, call, check, bet_pot, all_in
+    .obs_size = 30,     // Streamlined strategic features: hand strength, board texture, opponent modeling
     .starting_stack = 200,
     .small_blind = 1,
     .big_blind = 2

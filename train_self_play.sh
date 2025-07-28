@@ -123,21 +123,44 @@ run_generation() {
 
     # Find opponent directory if not specified
     if [ -z "$OPPONENT_DIR" ]; then
-        echo "🔍 Auto-detecting latest opponent directory..."
-        # First try to find the latest self-play generation
-        OPPONENT_DIR=$(find experiments -path "*/self_play_${ENV_NAME}/gen_*" -type d | sort -V | tail -1)
-        if [ -n "$OPPONENT_DIR" ]; then
-            echo "📁 Found latest self-play generation: $OPPONENT_DIR"
-            OPPONENT_MODE="self_play"
+        echo "🔍 Auto-detecting opponent directory for generation $gen_count..."
+        
+        if [ $gen_count -eq 1 ]; then
+            echo "⚠️  Generation 1: No previous generation exists. Using random opponent."
+            OPPONENT_MODE="random"
         else
-            # Fallback to any training directory for this environment
-            OPPONENT_DIR=$(find experiments -name "*${ENV_NAME}*" -type d | grep "${ENV_NAME}_" | sort -V | tail -1)
-            if [ -n "$OPPONENT_DIR" ]; then
-                echo "📁 Found latest training: $OPPONENT_DIR"
-                OPPONENT_MODE="self_play"
-            else
-                echo "⚠️  No previous training found. Starting with random opponent."
-                OPPONENT_MODE="random"
+            # Walk backwards from current-1 down to 1 to find the most recent valid generation
+            OPPONENT_DIR=""
+            OPPONENT_MODE=""
+            OPPONENT_GENERATION=""
+            
+            echo "🔍 Searching backwards from generation $((gen_count - 1)) down to 1..."
+            for target_gen in $(seq $((gen_count - 1)) -1 1); do
+                echo "🎯 Looking for generation $target_gen as opponent..."
+                
+                candidate_dir=$(find experiments -path "*/self_play_${ENV_NAME}/gen${target_gen}_*" -type d | sort -V | tail -1)
+                if [ -n "$candidate_dir" ]; then
+                    # Check if this generation has a model file
+                    if [ -f "$candidate_dir/model_gen${target_gen}.pt" ]; then
+                        OPPONENT_DIR="$candidate_dir"
+                        OPPONENT_GENERATION="$target_gen"
+                        echo "📁 Found valid opponent generation $target_gen: $OPPONENT_DIR"
+                        OPPONENT_MODE="self_play"
+                        break
+                    else
+                        echo "⚠️  Generation $target_gen directory exists but no model file found"
+                    fi
+                else
+                    echo "❌ Generation $target_gen not found"
+                fi
+            done
+            
+            if [ -z "$OPPONENT_DIR" ]; then
+                echo "💥 FATAL: No valid opponent generations found with model files!"
+                echo "Available directories:"
+                find experiments -path "*/self_play_${ENV_NAME}/gen*_*" -type d | sort -V
+                echo "Use --new flag for first generation with random opponent"
+                exit 1
             fi
         fi
     else
@@ -150,7 +173,7 @@ run_generation() {
 
     # Create generation metadata
     GENERATION=$(date +%Y%m%d_%H%M%S)
-    GEN_DIR="$SELF_PLAY_DIR/gen_$GENERATION"
+    GEN_DIR="$SELF_PLAY_DIR/gen${gen_count}_$GENERATION"
     mkdir -p "$GEN_DIR"
 
     echo "🎯 Training Generation: $GENERATION"
@@ -212,11 +235,19 @@ EOF
     TRAIN_TAG="--tag gen_${gen_count}_${GENERATION}"
     GEN_NUMBER_FLAG="--env.generation-number $gen_count"
     
+    # Add opponent generation info if available
+    if [ -n "$OPPONENT_GENERATION" ]; then
+        OPPONENT_GEN_FLAG="--env.opponent-generation $OPPONENT_GENERATION"
+        echo "🎯 Using opponent generation: $OPPONENT_GENERATION"
+    else
+        OPPONENT_GEN_FLAG=""
+    fi
+    
     if [ "$WANDB_FLAG" = "--wandb" ]; then
         echo "📈 WandB logging enabled"
-        puffer train puffer_$ENV_NAME $SELF_PLAY_FLAG $GEN_NUMBER_FLAG $TRAIN_TAG $WANDB_FLAG 2>&1 | tee "$GEN_DIR/training.log"
+        puffer train puffer_$ENV_NAME $SELF_PLAY_FLAG $GEN_NUMBER_FLAG $OPPONENT_GEN_FLAG $TRAIN_TAG $WANDB_FLAG 2>&1 | tee "$GEN_DIR/training.log"
     else
-        puffer train puffer_$ENV_NAME $SELF_PLAY_FLAG $GEN_NUMBER_FLAG $TRAIN_TAG 2>&1 | tee "$GEN_DIR/training.log"
+        puffer train puffer_$ENV_NAME $SELF_PLAY_FLAG $GEN_NUMBER_FLAG $OPPONENT_GEN_FLAG $TRAIN_TAG 2>&1 | tee "$GEN_DIR/training.log"
     fi
 
     TRAINING_EXIT_CODE=$?
@@ -255,9 +286,26 @@ with open('$GEN_DIR/training_info.json', 'w') as f:
             fi
         fi
         
+        # Copy the final trained model to generation directory
+        echo "📚 Copying trained model to generation directory..."
+        LATEST_MODEL_DIR=$(find experiments -name "puffer_${ENV_NAME}_*" -type d | sort -t_ -k3 -n | tail -1)
+        
+        if [ -n "$LATEST_MODEL_DIR" ] && [ -d "$LATEST_MODEL_DIR" ]; then
+            LATEST_MODEL=$(find "$LATEST_MODEL_DIR" -name "model_puffer_${ENV_NAME}_*.pt" | sort -V | tail -1)
+            if [ -n "$LATEST_MODEL" ]; then
+                cp "$LATEST_MODEL" "$GEN_DIR/model_gen${gen_count}.pt"
+                echo "🤖 Saved model: model_gen${gen_count}.pt"
+                echo "📁 Source: $LATEST_MODEL"
+            else
+                echo "⚠️  Warning: No trained model found in $LATEST_MODEL_DIR"
+            fi
+        else
+            echo "⚠️  Warning: No training directory found for this generation"
+        fi
+        
         # List available models
-        echo "📚 Generated models:"
-        find "$GEN_DIR" -name "model_*.pt" | sort -V | tail -5 | while read model; do
+        echo "📚 Generation models:"
+        find "$GEN_DIR" -name "model_*.pt" | sort -V | while read model; do
             echo "  🤖 $(basename $model)"
         done
         
@@ -317,24 +365,29 @@ if [ "$EVOLVE_MODE" = true ]; then
         EXIT_CODE=$?
         
         if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ Generation $GENERATION_COUNT completed!" | tee -a "$EVOLUTION_LOG"
+            echo "✅ Generation $GENERATION_COUNT completed successfully!" | tee -a "$EVOLUTION_LOG"
             CONSECUTIVE_FAILURES=0
             
-            if [ $GENERATION_COUNT -lt $MAX_GENERATIONS ]; then
-                echo "⏳ Waiting 3 seconds before next generation..."
-                sleep 3
-            fi
+            echo "🔄 Preparing for next generation (gen $((GENERATION_COUNT + 1)) vs gen $GENERATION_COUNT)..."
+            echo "⏳ Waiting 3 seconds before continuing evolution..."
+            sleep 3
         else
             CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
-            echo "❌ Generation $GENERATION_COUNT failed!" | tee -a "$EVOLUTION_LOG"
+            echo "❌ Generation $GENERATION_COUNT failed with exit code $EXIT_CODE!" | tee -a "$EVOLUTION_LOG"
+            echo "📋 Last 20 lines of training log:" | tee -a "$EVOLUTION_LOG"
+            tail -20 "$GEN_DIR/training.log" | tee -a "$EVOLUTION_LOG"
             
             if [ $CONSECUTIVE_FAILURES -ge $MAX_CONSECUTIVE_FAILURES ]; then
-                echo "🛑 Too many consecutive failures. Stopping evolution." | tee -a "$EVOLUTION_LOG"
-                break
+                echo "🛑 Too many consecutive failures ($CONSECUTIVE_FAILURES). Stopping evolution to prevent infinite crashes." | tee -a "$EVOLUTION_LOG"
+                echo "🔍 Check the training logs and fix the issue before restarting evolution." | tee -a "$EVOLUTION_LOG"
+                exit $EXIT_CODE
             fi
             
-            echo "⏳ Waiting 60 seconds before retry..."
-            sleep 60
+            echo "⚠️  Retrying generation $GENERATION_COUNT in 30 seconds... (failure $CONSECUTIVE_FAILURES/$MAX_CONSECUTIVE_FAILURES)"
+            echo "💡 If this keeps failing, press Ctrl+C to stop and investigate the issue."
+            sleep 30
+            # Don't increment GENERATION_COUNT on failure - retry the same generation
+            GENERATION_COUNT=$((GENERATION_COUNT - 1))
         fi
     done
     
