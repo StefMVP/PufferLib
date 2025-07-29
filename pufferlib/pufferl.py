@@ -947,6 +947,11 @@ def eval(env_name, args=None, vecenv=None, policy=None):
     num_agents = vecenv.observation_space.shape[0]
     device = args['train']['device']
 
+    # Set human mode if --human flag is provided (poker environments only)
+    if args.get('human', False) and env_name == 'puffer_poker':
+        from pufferlib.ocean.poker import binding
+        binding.vec_set_human_mode(vecenv.driver_env.c_envs, 0, True)
+
     state = {}
     if args['train']['use_rnn']:
         state = dict(
@@ -1126,6 +1131,7 @@ def load_config(env_name):
     parser.add_argument('--save-frames', type=int, default=0)
     parser.add_argument('--gif-path', type=str, default='eval.gif')
     parser.add_argument('--fps', type=float, default=15)
+    parser.add_argument('--human', action='store_true', help='Start in human mode for interactive play')
     parser.add_argument('--max-runs', type=int, default=200, help='Max number of sweep runs')
     parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
     parser.add_argument('--wandb-project', type=str, default='pufferlib')

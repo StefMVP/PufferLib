@@ -4,9 +4,10 @@
 static PyObject* set_opponent_action(PyObject* self, PyObject* args);
 static PyObject* vec_set_opponent_action(PyObject* self, PyObject* args);
 static PyObject* vec_set_batch_opponent_actions(PyObject* self, PyObject* args);
+static PyObject* vec_set_human_mode(PyObject* self, PyObject* args);
 
 #define Env Poker
-#define MY_METHODS {"set_opponent_action", (PyCFunction)set_opponent_action, METH_VARARGS, "Set opponent action"}, {"vec_set_opponent_action", (PyCFunction)vec_set_opponent_action, METH_VARARGS, "Set opponent action for vectorized environments"}, {"vec_set_batch_opponent_actions", (PyCFunction)vec_set_batch_opponent_actions, METH_VARARGS, "Set all opponent actions at once"}
+#define MY_METHODS {"set_opponent_action", (PyCFunction)set_opponent_action, METH_VARARGS, "Set opponent action"}, {"vec_set_opponent_action", (PyCFunction)vec_set_opponent_action, METH_VARARGS, "Set opponent action for vectorized environments"}, {"vec_set_batch_opponent_actions", (PyCFunction)vec_set_batch_opponent_actions, METH_VARARGS, "Set all opponent actions at once"}, {"vec_set_human_mode", (PyCFunction)vec_set_human_mode, METH_VARARGS, "Set human mode for an environment"}
 
 #include "../env_binding.h"
 
@@ -290,6 +291,47 @@ static PyObject* vec_set_batch_opponent_actions(PyObject* self, PyObject* args) 
         env->opponent_action_value = action;
         env->opponent_action_set = 1;
     }
+    
+    Py_RETURN_NONE;
+}
+
+static PyObject* vec_set_human_mode(PyObject* self, PyObject* args) {
+    if (PyTuple_Size(args) != 3) {
+        PyErr_SetString(PyExc_TypeError, "vec_set_human_mode requires 3 arguments: vecenv, env_idx, human_mode");
+        return NULL;
+    }
+    
+    VecEnv* vec = unpack_vecenv(args);
+    if (!vec) {
+        return NULL;
+    }
+    
+    PyObject* env_idx_obj = PyTuple_GetItem(args, 1);
+    if (!PyLong_Check(env_idx_obj)) {
+        PyErr_SetString(PyExc_TypeError, "env_idx must be an integer");
+        return NULL;
+    }
+    int env_idx = PyLong_AsLong(env_idx_obj);
+    
+    if (env_idx < 0 || env_idx >= vec->num_envs) {
+        PyErr_SetString(PyExc_IndexError, "env_idx out of bounds");
+        return NULL;
+    }
+    
+    PyObject* human_mode_obj = PyTuple_GetItem(args, 2);
+    if (!PyBool_Check(human_mode_obj) && !PyLong_Check(human_mode_obj)) {
+        PyErr_SetString(PyExc_TypeError, "human_mode must be a boolean or integer");
+        return NULL;
+    }
+    int human_mode = PyObject_IsTrue(human_mode_obj);
+    
+    Env* env = vec->envs[env_idx];
+    if (!env) {
+        PyErr_SetString(PyExc_ValueError, "Invalid environment at index");
+        return NULL;
+    }
+    
+    env->human_mode = human_mode ? 1 : 0;
     
     Py_RETURN_NONE;
 }
