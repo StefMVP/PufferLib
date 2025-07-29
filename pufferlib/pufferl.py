@@ -418,6 +418,13 @@ class PuffeRL:
                 torch.nn.utils.clip_grad_norm_(self.policy.parameters(), config['max_grad_norm'])
                 self.optimizer.step()
                 self.optimizer.zero_grad()
+                
+                # Update global training model for generation 1 self-play after each optimizer step
+                try:
+                    from pufferlib.ocean.poker.poker import set_global_training_model
+                    set_global_training_model(self.policy)
+                except ImportError:
+                    pass  # Not poker environment
 
         # Reprioritize experience
         profile('train_misc', epoch)

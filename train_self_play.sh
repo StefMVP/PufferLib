@@ -236,12 +236,10 @@ EOF
     TRAIN_TAG="--tag gen_${gen_count}_${GENERATION}"
     GEN_NUMBER_FLAG="--env.generation-number $gen_count"
     
-    # Add opponent generation info if available
+    # Opponent generation is auto-detected by the environment
+    OPPONENT_GEN_FLAG=""
     if [ -n "$OPPONENT_GENERATION" ]; then
-        OPPONENT_GEN_FLAG="--env.opponent-generation $OPPONENT_GENERATION"
-        echo "🎯 Using opponent generation: $OPPONENT_GENERATION"
-    else
-        OPPONENT_GEN_FLAG=""
+        echo "🎯 Using opponent generation: $OPPONENT_GENERATION (auto-detected)"
     fi
     
     if [ "$WANDB_FLAG" = "--wandb" ]; then

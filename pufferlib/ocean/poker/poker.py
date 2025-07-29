@@ -30,7 +30,6 @@ def set_global_training_model(model):
     global _current_training_model, _current_training_model_lock
     with _current_training_model_lock:
         _current_training_model = model
-        print(f"🎯 GLOBAL: Set current training model for Generation 1 self-play")
 
 def preload_opponent_model(generation_number):
     """Pre-load opponent model BEFORE creating any environments"""
@@ -702,8 +701,10 @@ class Poker(pufferlib.PufferEnv):
                 print(f"   • This should NEVER happen - model loading failed!")
                 raise RuntimeError(f"Neural opponent required but got None for generation {self.generation_number}")
             else:
-                # Non-self-play mode: Should not happen with new logic
-                print(f"⚠️  Warning: No opponent model in non-self-play mode")
+                # FALLBACK: 100% fold to prevent any random heuristic agents
+                print(f"🚫 FALLBACK: Using 100% fold agent (no random heuristics allowed)")
+                for env_idx in range(self.num_agents):
+                    binding.vec_set_opponent_action(self.c_envs, env_idx, 0)  # 0 = fold
                 return
         
         # ZERO-ALLOCATION GPU INFERENCE - FAST AS FUCK
