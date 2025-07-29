@@ -877,6 +877,11 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
 
     vecenv = vecenv or load_env(env_name, args)
     policy = policy or load_policy(args, vecenv, env_name)
+    
+    # CRITICAL: Set current model globally for Generation 1 self-play BEFORE distributed setup
+    if env_name == 'puffer_poker':
+        from pufferlib.ocean.poker.poker import set_global_training_model
+        set_global_training_model(policy)
 
     if 'LOCAL_RANK' in os.environ:
         args['train']['device'] = torch.cuda.current_device()
@@ -899,11 +904,6 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
 
     train_config = dict(**args['train'], env=env_name)
     pufferl = PuffeRL(train_config, vecenv, policy, logger)
-    
-    # CRITICAL: Set current model globally for Generation 1 self-play
-    if env_name == 'puffer_poker':
-        from pufferlib.ocean.poker.poker import set_global_training_model
-        set_global_training_model(policy)
 
     all_logs = []
     while pufferl.global_step < train_config['total_timesteps']:
