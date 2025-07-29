@@ -126,8 +126,9 @@ run_generation() {
         echo "🔍 Auto-detecting opponent directory for generation $gen_count..."
         
         if [ $gen_count -eq 1 ]; then
-            echo "⚠️  Generation 1: No previous generation exists. Using random opponent."
-            OPPONENT_MODE="random"
+            echo "🎯 Generation 1: Pure self-play mode (same model for both players)."
+            OPPONENT_MODE="self_play"
+            OPPONENT_GENERATION="1"
         else
             # Walk backwards from current-1 down to 1 to find the most recent valid generation
             OPPONENT_DIR=""
@@ -372,22 +373,13 @@ if [ "$EVOLVE_MODE" = true ]; then
             echo "⏳ Waiting 3 seconds before continuing evolution..."
             sleep 3
         else
-            CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
             echo "❌ Generation $GENERATION_COUNT failed with exit code $EXIT_CODE!" | tee -a "$EVOLUTION_LOG"
             echo "📋 Last 20 lines of training log:" | tee -a "$EVOLUTION_LOG"
             tail -20 "$GEN_DIR/training.log" | tee -a "$EVOLUTION_LOG"
             
-            if [ $CONSECUTIVE_FAILURES -ge $MAX_CONSECUTIVE_FAILURES ]; then
-                echo "🛑 Too many consecutive failures ($CONSECUTIVE_FAILURES). Stopping evolution to prevent infinite crashes." | tee -a "$EVOLUTION_LOG"
-                echo "🔍 Check the training logs and fix the issue before restarting evolution." | tee -a "$EVOLUTION_LOG"
-                exit $EXIT_CODE
-            fi
-            
-            echo "⚠️  Retrying generation $GENERATION_COUNT in 30 seconds... (failure $CONSECUTIVE_FAILURES/$MAX_CONSECUTIVE_FAILURES)"
-            echo "💡 If this keeps failing, press Ctrl+C to stop and investigate the issue."
-            sleep 30
-            # Don't increment GENERATION_COUNT on failure - retry the same generation
-            GENERATION_COUNT=$((GENERATION_COUNT - 1))
+            echo "🛑 Evolution stopped due to training failure. Fix the issue before restarting." | tee -a "$EVOLUTION_LOG"
+            echo "🔍 Check the training logs for error details." | tee -a "$EVOLUTION_LOG"
+            exit $EXIT_CODE
         fi
     done
     

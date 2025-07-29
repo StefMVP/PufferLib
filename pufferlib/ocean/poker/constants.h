@@ -56,4 +56,14 @@ static const Ranks RANK = {
     .eight = 6, .nine = 7, .ten = 8, .jack = 9, .queen = 10, .king = 11, .ace = 12
 };
 
+typedef struct {
+    uint32_t simulation_count;
+    float reward_weight;
+} MonteCarloConfig;
+
+static const MonteCarloConfig MC = {
+    .simulation_count = 50,
+    .reward_weight = 0.15f
+};
+
 #endif

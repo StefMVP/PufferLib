@@ -620,8 +620,6 @@ class PuffeRL:
             u = left if i % 2 == 0 else right
             u.add_row(f'{c2}{metric}', f'{b2}{value:.3f}')
             i += 1
-            if i == 30:
-                break
 
         if clear:
             console.clear()
@@ -901,6 +899,11 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
 
     train_config = dict(**args['train'], env=env_name)
     pufferl = PuffeRL(train_config, vecenv, policy, logger)
+    
+    # CRITICAL: Set current model globally for Generation 1 self-play
+    if env_name == 'puffer_poker':
+        from pufferlib.ocean.poker.poker import set_global_training_model
+        set_global_training_model(policy)
 
     all_logs = []
     while pufferl.global_step < train_config['total_timesteps']:

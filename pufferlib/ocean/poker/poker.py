@@ -21,6 +21,17 @@ _shared_opponent_model = None
 _shared_model_generation = None
 _shared_model_lock = threading.Lock()
 
+# GENERATION 1 SELF-PLAY: Global current training model
+_current_training_model = None
+_current_training_model_lock = threading.Lock()
+
+def set_global_training_model(model):
+    """Set the current training model for Generation 1 self-play"""
+    global _current_training_model, _current_training_model_lock
+    with _current_training_model_lock:
+        _current_training_model = model
+        print(f"🎯 GLOBAL: Set current training model for Generation 1 self-play")
+
 def preload_opponent_model(generation_number):
     """Pre-load opponent model BEFORE creating any environments"""
     global _shared_opponent_model, _shared_model_generation, _shared_model_lock
@@ -86,6 +97,7 @@ class Poker(pufferlib.PufferEnv):
         self.self_play_mode = self_play_mode
         self.generation_number = generation_number
         self.effective_self_play_mode = False  # Will be set later
+        self.generation_1_self_play = False  # Special flag for gen 1 self-play
 
         super().__init__(buf)
         self.actions = self.actions.astype(np.float32)
@@ -140,28 +152,37 @@ class Poker(pufferlib.PufferEnv):
             # Initialize effective_self_play_mode
             effective_self_play_mode = False
             
-            if self_play_mode and generation_number > 1:
+            if self_play_mode and generation_number >= 1:
                 effective_self_play_mode = True
                 self.effective_self_play_mode = True
                 
-                # League training: select opponent from available pool
-                available_generations = self._get_available_generations(generation_number)
-                if available_generations:
-                    self.opponent_generation = random.choice(available_generations)
+                if generation_number == 1:
+                    # Generation 1: Use special self-play mode
+                    # We'll handle this by using the current model for opponent inference
+                    self.opponent_generation = 1
+                    self.generation_1_self_play = True
+                    print(f"🎯 Generation 1: Pure self-play mode (same model both sides)")
                 else:
-                    # Fallback to heuristic if no models available
-                    self.opponent_generation = 0
+                    # League training: select opponent from available pool
+                    available_generations = self._get_available_generations(generation_number)
+                    if available_generations:
+                        self.opponent_generation = random.choice(available_generations)
+                    else:
+                        # Fallback to playing against generation 1
+                        self.opponent_generation = 1
+                    self.generation_1_self_play = False
                 
-                # Handle league training opponent loading
-                if self.opponent_generation == 0:
-                    # Use C heuristic archetypes (no Python model needed)
-                    print(f"🎯 League training: Using heuristic archetypes (generation 0)")
-                    self.opponent_model = None
-                    self.opponent_lstm_state = None
-                else:
-                    # AUTO-PRELOAD neural network opponent
-                    global _shared_opponent_model, _shared_model_generation, _shared_model_lock
-                    with _shared_model_lock:
+                # AUTO-PRELOAD neural network opponent (all generations use models now)
+                global _shared_opponent_model, _shared_model_generation, _shared_model_lock
+                with _shared_model_lock:
+                    if generation_number == 1:
+                        # Generation 1: Self-play without pre-existing model
+                        # The current training model will be used for both players during inference
+                        print(f"🎯 Generation 1: Self-play mode (same model for both players)")
+                        self.opponent_model = None  # Will be set during step() to current model
+                        self.opponent_lstm_state = None
+                    else:
+                        # Generation 2+: Load previous generation model
                         if (_shared_opponent_model is None or 
                             _shared_model_generation != self.opponent_generation):
                             print(f"🔄 AUTO-PRELOADING opponent model for generation {self.opponent_generation} (first env)")
@@ -185,11 +206,6 @@ class Poker(pufferlib.PufferEnv):
                                 'lstm_c': torch.zeros(1, shared_hidden_size, device=self.device)
                             } for _ in range(self.num_agents)]
                             print(f"✅ Using existing shared opponent model for generation {self.opponent_generation} on GPU")
-            elif self_play_mode and generation_number == 1:
-                print("ℹ️  Generation 1: Self-play mode disabled (no previous generation)")
-                effective_self_play_mode = False
-                self.effective_self_play_mode = False
-                self.opponent_generation = None
             else:
                 self.opponent_generation = None
         
@@ -198,6 +214,9 @@ class Poker(pufferlib.PufferEnv):
             intended_opponent_generation = opponent_generation
         elif hasattr(self, 'opponent_generation') and self.opponent_generation is not None:
             intended_opponent_generation = self.opponent_generation
+        elif generation_number == 1 and effective_self_play_mode:
+            # Generation 1 self-play: opponent generation should be 1 (same as hero)
+            intended_opponent_generation = 1
         else:
             intended_opponent_generation = 0
         
@@ -232,14 +251,15 @@ class Poker(pufferlib.PufferEnv):
         print(f"   • generation: {generation_number}")
         print(f"   • intended_opponent_generation: {intended_opponent_generation}")
         
-        # GPU warmup for opponent model inference
-        if self.use_gpu_inference and self.opponent_model is not None:
+        # GPU buffer allocation and warmup for opponent model inference
+        if self.opponent_model is not None:
+            self._allocate_gpu_buffers()
             self._warmup_gpu_inference()
         
         # STRICT self-play validation - CRASH if anything is wrong
         if effective_self_play_mode:
-            if self.opponent_generation == 0:
-                print(f"   🎯 LEAGUE TRAINING: Using heuristic archetypes (Gen 0)")
+            if generation_number == 1:
+                print(f"   🎯 GENERATION 1: Pure self-play (same model for both players)")
             elif self.opponent_model is not None:
                 print(f"   ✅ LEAGUE TRAINING: Neural opponent (Gen {intended_opponent_generation})")
             else:
@@ -248,7 +268,7 @@ class Poker(pufferlib.PufferEnv):
                 print(f"   • Training would be worthless without opponent")
                 raise RuntimeError(f"SELF-PLAY FAILED: Generation {generation_number} missing opponent model {intended_opponent_generation}!")
         else:
-            print(f"   ℹ️  Generation 1 (no opponent needed)")
+            print(f"   ℹ️  Non-self-play mode (should not happen with new logic)")
 
     def _get_available_generations(self, current_generation):
         """Get list of available opponent generations for league training"""
@@ -259,10 +279,9 @@ class Poker(pufferlib.PufferEnv):
             if self._model_exists(gen):
                 available.append(gen)
         
-        # FOR GPU OPTIMIZATION: Prefer neural opponents over heuristics
-        # Only add heuristics if no neural opponents available
+        # If no neural opponents available, fallback to generation 1
         if not available:
-            available.extend([0])  # Fallback to heuristics only if no neural models
+            available.extend([1])  # Fallback to generation 1 self-play
         
         print(f"🎯 League training pool: {available}")
         return available
@@ -347,6 +366,24 @@ class Poker(pufferlib.PufferEnv):
         
         # Clear GPU memory
         torch.cuda.empty_cache()
+    
+    def set_current_model_as_opponent(self, model):
+        """Set the current training model as opponent for generation 1 self-play"""
+        if self.generation_number == 1 and self.effective_self_play_mode:
+            print(f"🎯 Setting current training model as opponent for generation 1 self-play")
+            self.opponent_model = model.to(self.device)
+            self.opponent_model.eval()
+            
+            # Initialize opponent LSTM states
+            hidden_size = self._get_model_hidden_size()
+            self.opponent_lstm_state = [{
+                'lstm_h': torch.zeros(1, hidden_size, device=self.device),
+                'lstm_c': torch.zeros(1, hidden_size, device=self.device)
+            } for _ in range(self.num_agents)]
+            
+            # Allocate GPU buffers for opponent inference
+            self._allocate_gpu_buffers(hidden_size)
+            print(f"✅ Generation 1 self-play: Same model now used for both players")
     
     def _load_shared_opponent_model(self, opponent_generation):
         """Load opponent model ONCE and share across all environments"""
@@ -530,6 +567,73 @@ class Poker(pufferlib.PufferEnv):
             
             print(f"✅ GPU inference pipeline warmed up (batch_size={self.num_agents})")
     
+    def _allocate_gpu_buffers(self, hidden_size=None):
+        """Allocate GPU tensors for zero-allocation inference"""
+        if self.opponent_model is None:
+            return
+            
+        print("🚀 Pre-allocating GPU tensors for zero-allocation inference...")
+        
+        # Get hidden size from model if not provided
+        if hidden_size is None:
+            hidden_size = self._get_model_hidden_size()
+        
+        # Pre-allocate GPU buffers
+        self._gpu_obs_buffer = torch.zeros(
+            self.num_agents, 31, device=self.device, dtype=torch.float32
+        )
+        self._gpu_lstm_h_buffer = torch.zeros(
+            self.num_agents, hidden_size, device=self.device, dtype=torch.float32
+        )
+        self._gpu_lstm_c_buffer = torch.zeros(
+            self.num_agents, hidden_size, device=self.device, dtype=torch.float32
+        )
+        self._gpu_actions_buffer = torch.zeros(
+            self.num_agents, device=self.device, dtype=torch.long
+        )
+        
+        print(f"✅ Pre-allocated GPU buffers: obs({self._gpu_obs_buffer.shape}), "
+              f"lstm_h({self._gpu_lstm_h_buffer.shape}), "
+              f"lstm_c({self._gpu_lstm_c_buffer.shape}), "
+              f"actions({self._gpu_actions_buffer.shape})")
+    
+    def _get_model_hidden_size(self):
+        """Extract hidden size from the opponent model"""
+        if self.opponent_model is None:
+            return 64  # Default fallback
+            
+        # Try to detect hidden size from model architecture
+        if hasattr(self.opponent_model, 'policy'):
+            if hasattr(self.opponent_model.policy, 'encoder'):
+                if hasattr(self.opponent_model.policy.encoder, '__len__') and len(self.opponent_model.policy.encoder) > 0:
+                    first_layer = self.opponent_model.policy.encoder[0]
+                    if hasattr(first_layer, 'out_features'):
+                        return first_layer.out_features
+            if hasattr(self.opponent_model.policy, 'lstm'):
+                if hasattr(self.opponent_model.policy.lstm, 'hidden_size'):
+                    return self.opponent_model.policy.lstm.hidden_size
+        
+        return 64  # Default fallback
+    
+    def _get_model_hidden_size_from_model(self, model):
+        """Extract hidden size from any model"""
+        # Try to detect hidden size from model architecture
+        if hasattr(model, 'policy'):
+            if hasattr(model.policy, 'encoder'):
+                if hasattr(model.policy.encoder, '__len__') and len(model.policy.encoder) > 0:
+                    first_layer = model.policy.encoder[0]
+                    if hasattr(first_layer, 'out_features'):
+                        return first_layer.out_features
+            if hasattr(model.policy, 'lstm'):
+                if hasattr(model.policy.lstm, 'hidden_size'):
+                    return model.policy.lstm.hidden_size
+        
+        # Direct LSTM access
+        if hasattr(model, 'hidden_size'):
+            return model.hidden_size
+            
+        return 64  # Default fallback
+    
     def _get_opponent_action(self, env_idx, obs):
         """DEPRECATED: Use _set_batched_opponent_actions for performance"""
         # This method is no longer used but kept for compatibility
@@ -554,16 +658,52 @@ class Poker(pufferlib.PufferEnv):
     
     def _set_batched_opponent_actions(self):
         """Set opponent actions for all environments in a single batched inference"""
+        # Generation 1 self-play: Use global training model
+        if self.generation_number == 1 and self.effective_self_play_mode:
+            global _current_training_model, _current_training_model_lock
+            with _current_training_model_lock:
+                if _current_training_model is None:
+                    print(f"💥 FATAL: Generation 1 self-play but global training model is None!")
+                    print(f"   • Call set_global_training_model() before training")
+                    raise RuntimeError("Generation 1 self-play requires global training model!")
+                # Use global training model for opponent inference (keep in training mode to avoid CUDA issues)
+                current_model = _current_training_model.to(self.device)
+                
+                with torch.no_grad():
+                    # Simple batched inference using current training model
+                    obs_tensor = torch.from_numpy(self.observations).float().to(self.device)
+                    
+                    # Create temporary LSTM state for inference
+                    hidden_size = self._get_model_hidden_size_from_model(current_model)
+                    temp_lstm_h = torch.zeros(self.num_agents, hidden_size, device=self.device)
+                    temp_lstm_c = torch.zeros(self.num_agents, hidden_size, device=self.device)
+                    
+                    # Forward pass with current training model
+                    logits, _ = current_model.forward_eval(obs_tensor, {
+                        'lstm_h': temp_lstm_h,
+                        'lstm_c': temp_lstm_c
+                    })
+                    probs = torch.softmax(logits, dim=-1)
+                    actions = torch.multinomial(probs, 1).squeeze(-1)
+                    
+                    # Set opponent actions
+                    actions_cpu = actions.cpu().numpy().astype(np.int32)
+                    for env_idx in range(self.num_agents):
+                        binding.vec_set_opponent_action(self.c_envs, env_idx, int(actions_cpu[env_idx]))
+                return
+        
+        # Generation 2+ or non-self-play: Use loaded opponent model
         if self.opponent_model is None:
-            if self.effective_self_play_mode and self.opponent_generation != 0:
-                # CRITICAL: Neural opponent expected but model is None - CRASH!
+            if self.effective_self_play_mode:
+                # Generation 2+: Neural opponent expected but model is None - CRASH!
                 print(f"💥 FATAL: Neural opponent expected but model is None!")
                 print(f"   • Generation: {self.generation_number}")
                 print(f"   • Expected opponent generation: {self.opponent_generation}")
                 print(f"   • This should NEVER happen - model loading failed!")
                 raise RuntimeError(f"Neural opponent required but got None for generation {self.generation_number}")
             else:
-                # Generation 1, heuristic archetypes (gen 0), or --new mode: Use C opponent
+                # Non-self-play mode: Should not happen with new logic
+                print(f"⚠️  Warning: No opponent model in non-self-play mode")
                 return
         
         # ZERO-ALLOCATION GPU INFERENCE - FAST AS FUCK
@@ -600,7 +740,7 @@ class Poker(pufferlib.PufferEnv):
         self.actions[:] = actions
         
         # PERFORMANCE FIX: Batch opponent actions for massive speedup
-        if self.opponent_model is not None:
+        if self.opponent_model is not None or (self.generation_number == 1 and self.effective_self_play_mode):
             self._set_batched_opponent_actions()
         
         self.tick += 1

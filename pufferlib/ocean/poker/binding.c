@@ -143,6 +143,14 @@ static int my_log(PyObject* dict, Log* log) {
     assign_to_dict(dict, "generation_number", log->generation_number);
     assign_to_dict(dict, "opponent_generation", log->opponent_generation);
     assign_to_dict(dict, "n", log->n);
+    
+    assign_to_dict(dict, "mc_reward_total", log->mc_reward_total);
+    assign_to_dict(dict, "mc_reward_fold", log->mc_reward_fold);
+    assign_to_dict(dict, "mc_reward_call", log->mc_reward_call);
+    assign_to_dict(dict, "mc_reward_check", log->mc_reward_check);
+    assign_to_dict(dict, "mc_reward_bet_pot", log->mc_reward_bet_pot);
+    assign_to_dict(dict, "mc_reward_all_in", log->mc_reward_all_in);
+    assign_to_dict(dict, "mc_simulation_count", log->mc_simulation_count);
     return 0;
 }
 

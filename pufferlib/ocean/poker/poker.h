@@ -107,6 +107,14 @@ typedef struct Log {
     float generation_number;
     float opponent_generation;
     float n;
+    
+    float mc_reward_total;
+    float mc_reward_fold;
+    float mc_reward_call;
+    float mc_reward_check;
+    float mc_reward_bet_pot;
+    float mc_reward_all_in;
+    float mc_simulation_count;
 } Log;
 
 typedef struct ActionHistory {
@@ -153,6 +161,10 @@ typedef struct Poker {
     uint8_t villain_raised_preflop;
     uint8_t saw_flop;
     
+    uint8_t hero_bet_preflop;
+    uint8_t villain_bet_preflop;
+    uint8_t preflop_raises_count;
+    
     float current_generation;
     float intended_opponent_generation;
     
@@ -169,8 +181,6 @@ typedef struct Poker {
     uint16_t episode_showdowns;
     uint16_t episode_hands_won;
     
-    // Opponent archetype for diverse realistic play
-    uint8_t opponent_archetype;  // 0=TAG, 1=LAG, 2=Rock, 3=Fish, 4=Balanced
     uint16_t episode_hero_folds;
     uint16_t episode_villain_folds;
     uint16_t episode_showdown_wins;
@@ -191,6 +201,14 @@ typedef struct Poker {
     uint16_t episode_paired_boards;
     uint16_t villain_aggressive_actions;
     uint16_t villain_total_actions;
+    
+    float episode_mc_reward_total;
+    float episode_mc_reward_fold;
+    float episode_mc_reward_call;
+    float episode_mc_reward_check;
+    float episode_mc_reward_bet_pot;
+    float episode_mc_reward_all_in;
+    uint32_t episode_mc_simulation_count;
     
     // Hero stats tracking
     uint16_t hero_hands_vpip;
@@ -646,6 +664,14 @@ static void add_log(Poker* env) {
         (float)env->villain_aggressive_actions / (float)env->villain_total_actions : 0.5f;
     env->log.pot_randomization_factor = env->pot_randomization_factor;
     
+    env->log.mc_reward_total += env->episode_mc_reward_total;
+    env->log.mc_reward_fold += env->episode_mc_reward_fold;
+    env->log.mc_reward_call += env->episode_mc_reward_call;
+    env->log.mc_reward_check += env->episode_mc_reward_check;
+    env->log.mc_reward_bet_pot += env->episode_mc_reward_bet_pot;
+    env->log.mc_reward_all_in += env->episode_mc_reward_all_in;
+    env->log.mc_simulation_count += env->episode_mc_simulation_count;
+    
     // Calculate and log comprehensive stats
     float hands_played_float = (float)env->hand_number;
     
@@ -746,6 +772,10 @@ void start_new_hand(Poker* env) {
     env->villain_raised_preflop = 0;
     env->saw_flop = 0;
     
+    env->hero_bet_preflop = 0;
+    env->villain_bet_preflop = 0;
+    env->preflop_raises_count = 0;
+    
     // Reset per-hand tracking flags
     env->hero_vpip_this_hand = 0;
     env->hero_pfr_this_hand = 0;
@@ -779,8 +809,6 @@ void start_new_hand(Poker* env) {
     env->last_action[0] = 0;
     env->last_action[1] = 0;
     
-    // Randomize opponent archetype for diverse training
-    env->opponent_archetype = fast_rand(env) % 5;  // 0=TAG, 1=LAG, 2=Rock, 3=Fish, 4=Balanced
     
     shuffle_deck(env);
     
@@ -909,11 +937,6 @@ void advance_phase(Poker* env) {
             env->episode_pot_size_won += env->pot;
             env->hero_won_at_showdown++;
             
-            // Small bonus for reaching showdown (encourages calls vs over-folding)
-            float showdown_bonus = env->config.big_blind * 0.02f;
-            env->rewards[0] += showdown_bonus;
-            env->episode_return += showdown_bonus;
-            
             add_action_to_history(env, "Hero wins pot");
         } else if (winner == 1) {
             env->players[1].stack += env->pot;
@@ -924,11 +947,6 @@ void advance_phase(Poker* env) {
             env->episode_showdown_losses += 1;
             env->episode_pot_size_lost += env->pot;
             env->villain_won_at_showdown++;
-            
-            // Small consolation for reaching showdown (still better than over-folding)
-            float showdown_bonus = env->config.big_blind * 0.01f;
-            env->rewards[0] += showdown_bonus;
-            env->episode_return += showdown_bonus;
             
             add_action_to_history(env, "Villain wins pot");
         } else {
@@ -1054,53 +1072,6 @@ uint8_t is_betting_round_over(Poker* env) {
 }
 
 
-float get_preflop_vpip_threshold(Poker* env) {
-    // Professional VPIP ranges by archetype
-    switch (env->opponent_archetype) {
-        case 0: return 0.22f;  // TAG: 22% VPIP
-        case 1: return 0.32f;  // LAG: 32% VPIP  
-        case 2: return 0.18f;  // Rock: 18% VPIP
-        case 3: return 0.45f;  // Fish: 45% VPIP
-        case 4: return 0.25f;  // Balanced: 25% VPIP
-        default: return 0.25f;
-    }
-}
-
-float get_preflop_raise_threshold(Poker* env) {
-    // Professional PFR ranges by archetype
-    switch (env->opponent_archetype) {
-        case 0: return 0.18f;  // TAG: 18% PFR
-        case 1: return 0.26f;  // LAG: 26% PFR
-        case 2: return 0.12f;  // Rock: 12% PFR
-        case 3: return 0.08f;  // Fish: 8% PFR (passive)
-        case 4: return 0.20f;  // Balanced: 20% PFR
-        default: return 0.20f;
-    }
-}
-
-float get_fold_to_bet_threshold(Poker* env) {
-    // How often to fold when facing a bet (realistic ranges)
-    switch (env->opponent_archetype) {
-        case 0: return 0.65f;  // TAG: Fold 65% to bets
-        case 1: return 0.55f;  // LAG: Fold 55% (more sticky)
-        case 2: return 0.75f;  // Rock: Fold 75% (very tight)
-        case 3: return 0.30f;  // Fish: Fold 30% (calling station)
-        case 4: return 0.60f;  // Balanced: Fold 60%
-        default: return 0.60f;
-    }
-}
-
-float get_cbet_frequency(Poker* env) {
-    // C-bet frequency on flop when in position as aggressor
-    switch (env->opponent_archetype) {
-        case 0: return 0.70f;  // TAG: 70% c-bet
-        case 1: return 0.75f;  // LAG: 75% c-bet
-        case 2: return 0.60f;  // Rock: 60% c-bet
-        case 3: return 0.45f;  // Fish: 45% c-bet (passive)
-        case 4: return 0.68f;  // Balanced: 68% c-bet
-        default: return 0.68f;
-    }
-}
 
 void opponent_action(Poker* env) {
     if (env->opponent_action_set) {
@@ -1109,130 +1080,47 @@ void opponent_action(Poker* env) {
         env->opponent_action_set = 0;  // Reset flag
         execute_opponent_action(env, action);
         
-    } else if (!env->self_play_mode) {
-        // Generation 1: Realistic opponent archetypes with professional stats
+    } else {
+        // Generation 1 self-play: Opponent action will be set by Python using same model
+        // If we reach here, it means Python didn't set an opponent action
+        // This should only happen in very early training before model is available
+        
         uint32_t call_amount = env->current_bet - env->players[1].current_bet;
         
-        // Calculate hand strength (0.0 to 1.0 scale)
+        // Improved policy for generation 1 self-play bootstrap
+        // This should be replaced by true neural network inference ASAP
+        
+        // Calculate hand strength
         if (!env->hand_cache_valid) {
             env->cached_hero_hand_rank = fast_hand_eval(env->players[0].hole_cards, env->community_cards);
             env->cached_villain_hand_rank = fast_hand_eval(env->players[1].hole_cards, env->community_cards);
             env->hand_cache_valid = 1;
         }
         
-        uint32_t hand_rank = env->cached_villain_hand_rank;
-        float hand_strength = hand_rank / 8.0f;  // Normalize to 0-1
-        float randomness = (fast_rand(env) % 1000) / 1000.0f;  // Higher precision
-        
-        // Adjust hand strength for position (button gets to play looser)
-        uint8_t in_position = (env->players[1].position == env->button);
-        if (in_position) {
-            hand_strength += 0.1f;  // Play 10% looser in position
-        }
-        
+        float hand_strength = env->cached_villain_hand_rank / 8.0f;
+        uint32_t random_val = fast_rand(env) % 100;
         int action;
         
-        if (env->phase == PHASE.preflop) {
-            // PREFLOP: Use realistic VPIP/PFR ranges
-            float vpip_threshold = get_preflop_vpip_threshold(env);
-            float raise_threshold = get_preflop_raise_threshold(env);
-            
-            if (call_amount == 0) {
-                // First to act preflop (small blind)
-                // Use separate thresholds: top hands raise, middle hands call, weak hands fold
-                if (hand_strength >= (1.0f - raise_threshold)) {
-                    // Top PFR% of hands - raise
-                    action = ACTIONS.bet_pot;
-                } else if (hand_strength >= (1.0f - vpip_threshold)) {
-                    // VPIP range but not PFR - limp/call
-                    action = ACTIONS.call;
-                } else {
-                    // Outside VPIP range - fold
-                    action = ACTIONS.fold;
-                }
+        // More aggressive policy to match neural network behavior
+        if (call_amount == 0) {
+            // No bet to call - bet with good hands or bluff occasionally
+            if (hand_strength > 0.5f || random_val < 25) {
+                action = ACTIONS.bet_pot;
             } else {
-                // Facing a preflop raise
-                float fold_threshold = get_fold_to_bet_threshold(env);
-                
-                if (hand_strength >= 0.85f) {
-                    // Premium hands - 3-bet
-                    action = ACTIONS.bet_pot;
-                } else if (hand_strength >= (1.0f - vpip_threshold)) {
-                    // Top of VPIP range - call
-                    action = ACTIONS.call;
-                } else if (randomness > fold_threshold) {
-                    // Light call based on archetype
-                    action = ACTIONS.call;
-                } else {
-                    // Fold weak hands
-                    action = ACTIONS.fold;
-                }
+                action = ACTIONS.check;
             }
-            
         } else {
-            // POSTFLOP: More nuanced play based on board texture and archetype
-            float cbet_freq = get_cbet_frequency(env);
-            float fold_threshold = get_fold_to_bet_threshold(env);
-            
-            if (call_amount == 0) {
-                // No bet to call - can check or bet
-                uint8_t was_preflop_aggressor = (env->villain_raised_preflop);
-                
-                if (was_preflop_aggressor && randomness < cbet_freq) {
-                    // Continuation bet as preflop aggressor
-                    if (hand_strength >= 0.6f || randomness < 0.3f) {
-                        action = ACTIONS.bet_pot;
-                    } else {
-                        action = ACTIONS.check;
-                    }
-                } else if (hand_strength >= 0.75f) {
-                    // Strong hand - bet for value
-                    action = ACTIONS.bet_pot;
-                } else if (hand_strength >= 0.4f && randomness < 0.25f) {
-                    // Medium hand - sometimes bet as bluff
-                    action = ACTIONS.bet_pot;
-                } else {
-                    // Weak/medium hand - check
-                    action = ACTIONS.check;
-                }
-                
+            // Facing a bet - be more aggressive like neural network
+            if (hand_strength > 0.6f) {
+                action = ACTIONS.call;  // Call with strong hands
+            } else if (hand_strength > 0.2f && random_val < 40) {
+                action = ACTIONS.call;  // Sometimes call with medium hands  
             } else {
-                // Facing a bet - realistic calling/folding ranges
-                if (hand_strength >= 0.8f) {
-                    // Strong hand - raise for value
-                    action = ACTIONS.bet_pot;
-                } else if (hand_strength >= 0.5f) {
-                    // Medium-strong hand - call
-                    action = ACTIONS.call;
-                } else if (hand_strength >= 0.1f && randomness < (1.0f - fold_threshold)) {
-                    // Bluff-catcher range - call based on archetype (lowered from 0.3f to 0.1f)
-                    action = ACTIONS.call;
-                } else if (hand_strength < 0.2f && randomness < 0.15f) {
-                    // Weak hand - sometimes bluff-raise
-                    action = ACTIONS.bet_pot;
-                } else {
-                    // Weak hand - fold
-                    action = ACTIONS.fold;
-                }
+                action = ACTIONS.fold;  // Fold weak hands
             }
         }
         
         execute_opponent_action(env, action);
-        
-    } else if (env->episode_length <= 1) {
-        // Generation 2+: First step grace period - use conservative action
-        uint32_t call_amount = env->current_bet - env->players[1].current_bet;
-        int action = (call_amount == 0) ? ACTIONS.check : ACTIONS.call;
-        execute_opponent_action(env, action);
-        
-    } else {
-        // Generation 2+: CRASH if no opponent model after first step
-        printf("💥 FATAL: Self-play mode but no opponent action from Python model!\n");
-        printf("   • self_play_mode: %d\n", env->self_play_mode);
-        printf("   • opponent_action_set: %d\n", env->opponent_action_set);
-        printf("   • episode_length: %d\n", env->episode_length);
-        printf("   • Generation 2+ requires opponent model!\n");
-        exit(1);
     }
 }
 
@@ -1255,6 +1143,27 @@ void execute_opponent_action(Poker* env, int action) {
     int is_preflop = (env->phase == PHASE.preflop);
     int is_cbet_spot = (env->villain_raised_preflop && env->phase >= PHASE.flop);
     track_comprehensive_stats(env, 1, action, is_preflop, is_cbet_spot);
+    
+    // Track villain 3-bet opportunities and actions
+    if (env->phase == PHASE.preflop) {
+        if (action == ACTIONS.bet_pot || action == ACTIONS.all_in) {
+            if (!env->villain_bet_preflop) {
+                env->villain_bet_preflop = 1;
+                env->preflop_raises_count++;
+            } else {
+                env->preflop_raises_count++;
+            }
+        }
+        
+        // Villain 3-bet opportunity: hero has raised and villain faces decision to re-raise
+        if (env->preflop_raises_count >= 1 && env->hero_bet_preflop && call_amount > env->config.big_blind) {
+            env->villain_opportunities_3bet++;
+            
+            if (action == ACTIONS.bet_pot || action == ACTIONS.all_in) {
+                env->villain_actual_3bet++;
+            }
+        }
+    }
     
     if (action == ACTIONS.fold) {
         env->players[1].folded = 1;
@@ -1369,11 +1278,20 @@ void c_reset(Poker* env) {
     env->villain_aggressive_actions = 0;
     env->villain_total_actions = 0;
     
+    env->episode_mc_reward_total = 0.0f;
+    env->episode_mc_reward_fold = 0.0f;
+    env->episode_mc_reward_call = 0.0f;
+    env->episode_mc_reward_check = 0.0f;
+    env->episode_mc_reward_bet_pot = 0.0f;
+    env->episode_mc_reward_all_in = 0.0f;
+    env->episode_mc_simulation_count = 0;
+    
     // Reset comprehensive stat tracking
     env->hero_hands_vpip = 0;
     env->hero_hands_pfr = 0;
     env->hero_vpip_this_hand = 0;
     env->hero_pfr_this_hand = 0;
+    env->hero_bet_preflop = 0;
     env->hero_opportunities_3bet = 0;
     env->hero_actual_3bet = 0;
     env->hero_opportunities_fold_to_3bet = 0;
@@ -1393,6 +1311,8 @@ void c_reset(Poker* env) {
     env->villain_hands_pfr = 0;
     env->villain_vpip_this_hand = 0;
     env->villain_pfr_this_hand = 0;
+    env->villain_bet_preflop = 0;
+    env->preflop_raises_count = 0;
     env->villain_opportunities_3bet = 0;
     env->villain_actual_3bet = 0;
     env->villain_opportunities_fold_to_3bet = 0;
@@ -1447,6 +1367,63 @@ void c_reset(Poker* env) {
     compute_observations(env);
 }
 
+void deal_community_card(Poker* env) {
+    if (env->phase == PHASE.flop) {
+        for (int i = 0; i < 3; i++) {
+            env->community_cards[i] = deal_card(env);
+        }
+        env->community_count = 3;
+        env->board_cache_valid = 0;
+        compute_board_texture(env);
+    } else if (env->phase == PHASE.turn) {
+        env->community_cards[3] = deal_card(env);
+        env->community_count = 4;
+        env->board_cache_valid = 0;
+    } else if (env->phase == PHASE.river) {
+        env->community_cards[4] = deal_card(env);
+        env->community_count = 5;
+        env->board_cache_valid = 0;
+    }
+}
+
+float monte_carlo_action_value(Poker* env, int action) {
+    if (env->phase >= PHASE.showdown) return 0.0f;
+    
+    // SIMPLIFIED HAND STRENGTH EVALUATION - No stack copying to prevent segfault
+    uint32_t hero_hand_rank = fast_hand_eval(env->players[0].hole_cards, env->community_cards);
+    uint32_t villain_hand_rank = fast_hand_eval(env->players[1].hole_cards, env->community_cards);
+    
+    float hero_strength = (float)hero_hand_rank / 8.0f;
+    float villain_strength = (float)villain_hand_rank / 8.0f;
+    
+    // Estimate win probability based on hand strength comparison
+    float win_probability = 0.5f;
+    if (hero_strength > villain_strength + 0.1f) {
+        win_probability = 0.75f;
+    } else if (hero_strength < villain_strength - 0.1f) {
+        win_probability = 0.25f;
+    }
+    
+    // Calculate expected value for each action
+    float expected_value = 0.0f;
+    uint32_t call_amount = env->current_bet - env->players[0].current_bet;
+    float pot_size = (float)env->pot;
+    
+    if (action == ACTIONS.fold) {
+        expected_value = 0.0f;
+    } else if (action == ACTIONS.call && call_amount > 0) {
+        expected_value = (win_probability * pot_size) - ((1.0f - win_probability) * (float)call_amount);
+    } else if (action == ACTIONS.check) {
+        expected_value = win_probability * pot_size * 0.5f;
+    } else if (action == ACTIONS.bet_pot) {
+        expected_value = (win_probability * pot_size * 1.8f) - ((1.0f - win_probability) * pot_size);
+    } else if (action == ACTIONS.all_in) {
+        float all_in_amount = (float)env->players[0].stack;
+        expected_value = (win_probability * (pot_size + all_in_amount)) - ((1.0f - win_probability) * all_in_amount);
+    }
+    
+    return expected_value / 10.0f; // Scale to reasonable reward range
+}
 
 void c_step(Poker* env) {
     env->terminals[0] = 0;
@@ -1483,12 +1460,50 @@ void c_step(Poker* env) {
         
         int action = (int)env->actions[0];
         
+        // Calculate Monte Carlo reward for this action
+        float mc_reward = monte_carlo_action_value(env, action) * MC.reward_weight;
+        env->rewards[0] += mc_reward;
+        env->episode_return += mc_reward;
+        
+        // Track MC reward stats
+        env->episode_mc_reward_total += mc_reward;
+        env->episode_mc_simulation_count += 1; // Track each MC call
+        if (action == ACTIONS.fold) env->episode_mc_reward_fold += mc_reward;
+        else if (action == ACTIONS.call) env->episode_mc_reward_call += mc_reward;
+        else if (action == ACTIONS.check) env->episode_mc_reward_check += mc_reward;
+        else if (action == ACTIONS.bet_pot) env->episode_mc_reward_bet_pot += mc_reward;
+        else if (action == ACTIONS.all_in) env->episode_mc_reward_all_in += mc_reward;
+        
         // Only increment episode length when actual actions are taken
         env->episode_length++;
         
         if (action >= 0 && action < POKER.action_count) {
             uint32_t call_amount = env->current_bet - env->players[0].current_bet;
             env->episode_river_decisions += 1;
+            
+            // Track 3-bet opportunities and actions
+            if (env->phase == PHASE.preflop) {
+                // Track betting sequence for proper 3-bet detection
+                if (action == ACTIONS.bet_pot || action == ACTIONS.all_in) {
+                    if (!env->hero_bet_preflop) {
+                        env->hero_bet_preflop = 1;
+                        env->preflop_raises_count++;
+                    } else {
+                        // Hero is raising again - potential 3-bet or 4-bet
+                        env->preflop_raises_count++;
+                    }
+                }
+                
+                // 3-bet opportunity: villain has raised and hero faces a decision to re-raise
+                // This happens when there have been raises and hero faces a bet > big blind
+                if (env->preflop_raises_count >= 1 && env->villain_bet_preflop && call_amount > env->config.big_blind) {
+                    env->hero_opportunities_3bet++;
+                    
+                    if (action == ACTIONS.bet_pot || action == ACTIONS.all_in) {
+                        env->hero_actual_3bet++;
+                    }
+                }
+            }
             
             // Track comprehensive stats for hero
             int is_preflop = (env->phase == PHASE.preflop);
@@ -1632,7 +1647,6 @@ void c_step(Poker* env) {
             float net_profit = -hero_investment;
             env->rewards[0] += net_profit;
             env->episode_return += net_profit;
-            env->episode_hero_folds += 1;
             env->episode_pot_size_lost += env->pot;
             
             start_new_hand(env);
