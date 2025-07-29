@@ -934,6 +934,58 @@ def train(env_name, args=None, vecenv=None, policy=None, logger=None):
 
 def eval(env_name, args=None, vecenv=None, policy=None):
     args = args or load_config(env_name)
+    
+    # Handle --generation flag to auto-find model path
+    if args.get('generation') is not None and not args.get('load_model_path'):
+        generation = args['generation']
+        import glob
+        
+        # Extract base env name (e.g., 'poker' from 'puffer_poker')
+        base_env_name = env_name.replace('puffer_', '') if env_name.startswith('puffer_') else env_name
+        
+        # Search for model files for this generation
+        patterns = [
+            f"experiments/self_play_{base_env_name}/gen{generation}_*/model_gen{generation}.pt",
+            f"experiments/{env_name}/gen{generation}_*/model_gen{generation}.pt",
+        ]
+        
+        model_files = []
+        for pattern in patterns:
+            model_files.extend(glob.glob(pattern))
+        
+        if not model_files:
+            print(f"❌ No model found for generation {generation}")
+            print(f"Searched patterns: {patterns}")
+            # List available generations
+            all_gen_dirs = glob.glob(f"experiments/self_play_{base_env_name}/gen*_*/") + glob.glob(f"experiments/{env_name}/gen*_*/")
+            if all_gen_dirs:
+                available_gens = sorted(set([
+                    int(d.split('gen')[1].split('_')[0]) 
+                    for d in all_gen_dirs 
+                    if '/gen' in d and '_' in d.split('gen')[1]
+                ]))
+                print(f"Available generations: {available_gens}")
+            else:
+                print("No experiment directories found")
+            raise ValueError(f"Model for generation {generation} not found")
+        
+        # Use the most recent model file for this generation
+        latest_model = sorted(model_files)[-1]
+        args['load_model_path'] = latest_model
+        print(f"🤖 Loading generation {generation} model: {latest_model}")
+        
+        # Configure environment for evaluation against loaded model
+        # For generations > 1, we play against the loaded model (not self-play)
+        # For generation 1, we need to disable self-play mode for evaluation
+        if generation > 1:
+            args['env']['self_play_mode'] = True
+            args['env']['generation_number'] = generation + 1  # We are the next generation
+            args['env']['opponent_generation'] = generation    # Opponent is the loaded generation
+        else:
+            # Generation 1: disable self-play for evaluation
+            args['env']['self_play_mode'] = False
+            args['env']['generation_number'] = 1
+    
     backend = args['vec']['backend']
     if backend != 'PufferEnv':
         backend = 'Serial'
@@ -1132,6 +1184,7 @@ def load_config(env_name):
     parser.add_argument('--gif-path', type=str, default='eval.gif')
     parser.add_argument('--fps', type=float, default=15)
     parser.add_argument('--human', action='store_true', help='Start in human mode for interactive play')
+    parser.add_argument('--generation', type=int, default=None, help='Load model from specific generation for evaluation')
     parser.add_argument('--max-runs', type=int, default=200, help='Max number of sweep runs')
     parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
     parser.add_argument('--wandb-project', type=str, default='pufferlib')

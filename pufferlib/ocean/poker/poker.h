@@ -119,6 +119,7 @@ typedef struct Log {
 
 typedef struct ActionHistory {
     char actions[20][50];
+    Color colors[20];
     int count;
 } ActionHistory;
 
@@ -723,8 +724,13 @@ static void add_log(Poker* env) {
 }
 
 void add_action_to_history(Poker* env, const char* action) {
+    add_action_to_history_with_color(env, action, WHITE);
+}
+
+void add_action_to_history_with_color(Poker* env, const char* action, Color color) {
     if (!env->headless && env->hand_history.count < 20) {
         strcpy(env->hand_history.actions[env->hand_history.count], action);
+        env->hand_history.colors[env->hand_history.count] = color;
         env->hand_history.count++;
     }
 }
@@ -766,7 +772,6 @@ void start_new_hand(Poker* env) {
     env->hand_cache_valid = 0;
     env->board_cache_valid = 0;
     
-    env->hand_history.count = 0;
     
     env->hero_raised_preflop = 0;
     env->villain_raised_preflop = 0;
@@ -819,6 +824,17 @@ void start_new_hand(Poker* env) {
     
     // No community cards dealt at preflop
     env->community_count = 0;
+    
+    // Add starting stack information BEFORE preflop announcement
+    char hero_stack_msg[100];
+    char villain_stack_msg[100];
+    float hero_bb = (float)env->players[0].stack / env->config.big_blind;
+    float villain_bb = (float)env->players[1].stack / env->config.big_blind;
+    sprintf(hero_stack_msg, "Hero: %.1f BB", hero_bb);
+    sprintf(villain_stack_msg, "Villain: %.1f BB", villain_bb);
+    add_action_to_history_with_color(env, hero_stack_msg, YELLOW);
+    add_action_to_history_with_color(env, villain_stack_msg, YELLOW);
+    
     add_action_to_history(env, "--- PREFLOP ---");
     
     // Board texture analysis only applies when community cards exist
@@ -840,8 +856,10 @@ void start_new_hand(Poker* env) {
         env->players[1].current_bet = big_blind_amt;
         if (!env->headless) {
             char sb_msg[50], bb_msg[50];
-            snprintf(sb_msg, sizeof(sb_msg), "Hero SB $%d", small_blind_amt);
-            snprintf(bb_msg, sizeof(bb_msg), "Villain BB $%d", big_blind_amt);
+            float sb_bb = (float)small_blind_amt / env->config.big_blind;
+            snprintf(sb_msg, sizeof(sb_msg), "Hero SB %.1f BB", sb_bb);
+            float bb_bb = (float)big_blind_amt / env->config.big_blind;
+            snprintf(bb_msg, sizeof(bb_msg), "Villain BB %.1f BB", bb_bb);
             add_action_to_history(env, sb_msg);
             add_action_to_history(env, bb_msg);
         }
@@ -850,8 +868,10 @@ void start_new_hand(Poker* env) {
         env->players[0].current_bet = big_blind_amt;
         if (!env->headless) {
             char sb_msg[50], bb_msg[50];
-            snprintf(sb_msg, sizeof(sb_msg), "Villain SB $%d", small_blind_amt);
-            snprintf(bb_msg, sizeof(bb_msg), "Hero BB $%d", big_blind_amt);
+            float sb_bb = (float)small_blind_amt / env->config.big_blind;
+            snprintf(sb_msg, sizeof(sb_msg), "Villain SB %.1f BB", sb_bb);
+            float bb_bb = (float)big_blind_amt / env->config.big_blind;
+            snprintf(bb_msg, sizeof(bb_msg), "Hero BB %.1f BB", bb_bb);
             add_action_to_history(env, sb_msg);
             add_action_to_history(env, bb_msg);
         }
@@ -937,7 +957,10 @@ void advance_phase(Poker* env) {
             env->episode_pot_size_won += env->pot;
             env->hero_won_at_showdown++;
             
-            add_action_to_history(env, "Hero wins pot");
+            char win_msg[100];
+            float bb_won = (float)env->pot / env->config.big_blind;
+            sprintf(win_msg, "Hero wins %.1f BB", bb_won);
+            add_action_to_history_with_color(env, win_msg, GREEN);
         } else if (winner == 1) {
             env->players[1].stack += env->pot;
             net_profit = -hero_investment;
@@ -948,12 +971,18 @@ void advance_phase(Poker* env) {
             env->episode_pot_size_lost += env->pot;
             env->villain_won_at_showdown++;
             
-            add_action_to_history(env, "Villain wins pot");
+            char loss_msg[100];
+            float bb_lost = (float)env->pot / env->config.big_blind;
+            sprintf(loss_msg, "Villain wins %.1f BB", bb_lost);
+            add_action_to_history_with_color(env, loss_msg, RED);
         } else {
             uint32_t split_pot = env->pot / 2;
             env->players[0].stack += split_pot;
             env->players[1].stack += split_pot;
-            add_action_to_history(env, "Split pot");
+            char split_msg[100];
+            float bb_split = (float)env->pot / env->config.big_blind / 2.0f;
+            sprintf(split_msg, "Split pot %.1f BB each", bb_split);
+            add_action_to_history_with_color(env, split_msg, YELLOW);
         }
         
         env->episode_showdowns += 1;
@@ -970,7 +999,7 @@ void advance_phase(Poker* env) {
 }
 
 void track_comprehensive_stats(Poker* env, int player, int action, int is_preflop, int is_cbet_spot) {
-    // Track VPIP (Voluntarily Put $ In Pot) - once per hand
+    // Track VPIP (Voluntarily Put bb In Pot) - once per hand
     if (is_preflop && (action == ACTIONS.call || action == ACTIONS.bet_pot || action == ACTIONS.all_in)) {
         if (player == 0 && !env->hero_vpip_this_hand) {
             env->hero_hands_vpip++;
@@ -1179,7 +1208,8 @@ void execute_opponent_action(Poker* env, int action) {
             env->pot += call_amount;
             if (!env->headless) {
                 char action_str[50];
-                snprintf(action_str, sizeof(action_str), "Villain calls $%d", call_amount);
+                float call_bb = (float)call_amount / env->config.big_blind;
+                snprintf(action_str, sizeof(action_str), "Villain calls %.1f BB", call_bb);
                 add_action_to_history(env, action_str);
             }
             track_betting_action(env, 1, 1, 0);  // Player 1, call/check action, not a check
@@ -1192,7 +1222,8 @@ void execute_opponent_action(Poker* env, int action) {
             env->pot += all_in_amount;
             if (!env->headless) {
                 char action_str[50];
-                snprintf(action_str, sizeof(action_str), "Villain calls all-in $%d", all_in_amount);
+                float allin_bb = (float)all_in_amount / env->config.big_blind;
+                snprintf(action_str, sizeof(action_str), "Villain calls all-in %.1f BB", allin_bb);
                 add_action_to_history(env, action_str);
             }
             track_betting_action(env, 1, 1, 0);  // Player 1, call/check action, not a check
@@ -1236,7 +1267,8 @@ void execute_opponent_action(Poker* env, int action) {
             
             if (!env->headless) {
                 char action_str[50];
-                snprintf(action_str, sizeof(action_str), "Villain bets %s $%d", action_name, bet_amount);
+                float bet_bb = (float)bet_amount / env->config.big_blind;
+                snprintf(action_str, sizeof(action_str), "Villain bets %s %.1f BB", action_name, bet_bb);
                 add_action_to_history(env, action_str);
             }
             track_betting_action(env, 1, 2, 0);  // Player 1, bet action, not a check
@@ -1552,7 +1584,8 @@ void c_step(Poker* env) {
                     } else {
                         if (!env->headless) {
                             char action_str[50];
-                            snprintf(action_str, sizeof(action_str), "Hero calls $%d", call_amount);
+                            float call_bb = (float)call_amount / env->config.big_blind;
+                            snprintf(action_str, sizeof(action_str), "Hero calls %.1f BB", call_bb);
                             add_action_to_history(env, action_str);
                         }
                         track_betting_action(env, 0, 1, 0);  // Player 0, call/check action, not a check
@@ -1614,9 +1647,11 @@ void c_step(Poker* env) {
                     if (!env->headless) {
                         char action_str[50];
                         if (action == ACTIONS.all_in) {
-                            snprintf(action_str, sizeof(action_str), "Hero all-in $%d", bet_amount);
+                            float allin_bb = (float)bet_amount / env->config.big_blind;
+                            snprintf(action_str, sizeof(action_str), "Hero all-in %.1f BB", allin_bb);
                         } else {
-                            snprintf(action_str, sizeof(action_str), "Hero bets $%d", bet_amount);
+                            float bet_bb = (float)bet_amount / env->config.big_blind;
+                            snprintf(action_str, sizeof(action_str), "Hero bets %.1f BB", bet_bb);
                         }
                         add_action_to_history(env, action_str);
                     }
@@ -1797,16 +1832,22 @@ void c_render(Poker* env) {
     
     DrawText("(SHIFT to toggle)", client->width - 140, 40, 10, GRAY);
     
+    // Add transparent background behind top-left text
+    DrawRectangle(5, 40, 400, 50, (Color){25, 25, 25, 180});
+    
     DrawText(TextFormat("Hand #%d", env->hand_number), 10, 45, 18, WHITE);
     
-    // Calculate and display running BB/100
+    // Calculate and display running BB/100 (only count completed hands)
     float running_bb_100 = 0.0f;
-    if (env->hand_number > 0) {
-        running_bb_100 = (env->episode_return / (float)env->config.big_blind) * 100.0f / (float)env->hand_number;
+    int completed_hands = env->hand_number - 1;  // Current hand is in progress
+    if (completed_hands > 0) {
+        running_bb_100 = (env->episode_return / (float)env->config.big_blind) * 100.0f / (float)completed_hands;
     }
-    DrawText(TextFormat("BB/100: %.1f", running_bb_100), 10, 70, 16, running_bb_100 >= 0 ? GREEN : RED);
+    float return_bb = env->episode_return / env->config.big_blind;
+    DrawText(TextFormat("BB/100: %.1f (Return: %.1f BB, Hands: %d)", running_bb_100, return_bb, completed_hands), 10, 70, 16, running_bb_100 >= 0 ? GREEN : RED);
     
-    DrawText(TextFormat("POT: $%d", env->pot), center_x - 50, center_y - 120, 20, gold);
+    float pot_bb = (float)env->pot / env->config.big_blind;
+    DrawText(TextFormat("POT: %.1f BB", pot_bb), center_x - 50, center_y - 120, 20, gold);
     
     const char* phase_names[] = {"Pre-flop", "Flop", "Turn", "River", "Showdown"};
     DrawText(phase_names[env->phase], center_x - 40, center_y + 100, 18, WHITE);
@@ -1814,8 +1855,10 @@ void c_render(Poker* env) {
     float hero_cards_x = center_x - 30;
     float hero_cards_y = client->height - 100;
     
-    DrawText(TextFormat("$%d", env->players[0].stack), hero_cards_x + 120, hero_cards_y + 10, 14, WHITE);
-    DrawText(TextFormat("Bet: $%d", env->players[0].current_bet), hero_cards_x + 120, hero_cards_y + 30, 12, GRAY);
+    float hero_stack_bb = (float)env->players[0].stack / env->config.big_blind;
+    DrawText(TextFormat("%.1f BB", hero_stack_bb), hero_cards_x + 120, hero_cards_y + 10, 14, WHITE);
+    float hero_bet_bb = (float)env->players[0].current_bet / env->config.big_blind;
+    DrawText(TextFormat("Bet: %.1f BB", hero_bet_bb), hero_cards_x + 120, hero_cards_y + 30, 12, GRAY);
     
     if (env->players[0].folded) {
         DrawText("FOLDED", hero_cards_x + 120, hero_cards_y + 50, 12, RED);
@@ -1826,8 +1869,10 @@ void c_render(Poker* env) {
     float villain_cards_x = center_x - 30;
     float villain_cards_y = 80;
     
-    DrawText(TextFormat("$%d", env->players[1].stack), villain_cards_x + 120, villain_cards_y + 10, 14, WHITE);
-    DrawText(TextFormat("Bet: $%d", env->players[1].current_bet), villain_cards_x + 120, villain_cards_y + 30, 12, GRAY);
+    float villain_stack_bb = (float)env->players[1].stack / env->config.big_blind;
+    DrawText(TextFormat("%.1f BB", villain_stack_bb), villain_cards_x + 120, villain_cards_y + 10, 14, WHITE);
+    float villain_bet_bb = (float)env->players[1].current_bet / env->config.big_blind;
+    DrawText(TextFormat("Bet: %.1f BB", villain_bet_bb), villain_cards_x + 120, villain_cards_y + 30, 12, GRAY);
     
     if (env->players[1].folded) {
         DrawText("FOLDED", villain_cards_x + 120, villain_cards_y + 50, 12, RED);
@@ -1897,7 +1942,8 @@ void c_render(Poker* env) {
             
             uint32_t call_amount = env->current_bet - env->players[0].current_bet;
             if (call_amount > 0) {
-                DrawText(TextFormat("To call: $%d", call_amount), action_panel_x + 15, action_panel_y + 180, 12, YELLOW);
+                float call_bb = (float)call_amount / env->config.big_blind;
+                DrawText(TextFormat("To call: %.1f BB", call_bb), action_panel_x + 15, action_panel_y + 180, 12, YELLOW);
             }
         } else {
             DrawText("WAITING...", action_panel_x + 15, action_panel_y + 15, 18, GRAY);
@@ -1905,10 +1951,10 @@ void c_render(Poker* env) {
         }
     }
     
-    float history_panel_x = client->width - 280;
-    float history_panel_y = center_y + 80;
-    float history_width = 260;
-    float history_height = 320;
+    float history_panel_x = client->width - 300;
+    float history_panel_y = 45;
+    float history_width = 280;
+    float history_height = client->height - 55;
     
     DrawRectangle(history_panel_x, history_panel_y, history_width, history_height, (Color){25, 25, 25, 220});
     DrawRectangleLines(history_panel_x, history_panel_y, history_width, history_height, silver);
@@ -1918,7 +1964,7 @@ void c_render(Poker* env) {
     
     int y_offset = 65;
     for (int i = 0; i < env->hand_history.count && i < 20; i++) {
-        DrawText(env->hand_history.actions[i], history_panel_x + 15, history_panel_y + y_offset, 10, WHITE);
+        DrawText(env->hand_history.actions[i], history_panel_x + 15, history_panel_y + y_offset, 10, env->hand_history.colors[i]);
         y_offset += 12;
     }
     
